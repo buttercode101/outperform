@@ -187,6 +187,28 @@ export default function App() {
     }
   }
 
+  async function decideSession(decision) {
+    if (!selected?.session?.id) return;
+    setBusy(true);
+    setNotice("");
+    try {
+      const response = await fetch(`/api/sessions/${selected.session.id}/decision`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ decision })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || data.error || "Could not save your decision.");
+      setSelected(null);
+      await loadSessions();
+      setNotice(decision === "APPROVE" ? "You approved this result." : "You rejected this result. The session is closed; start a new session to try a different direction.");
+    } catch (e) {
+      setNotice(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (authPending) return <div className="boot-screen"><Mark /><span>Loading your workspace…</span></div>;
   if (!authSession?.user) return <AuthScreen />;
 
@@ -263,8 +285,23 @@ export default function App() {
           {detailLoading ? <p>Loading session evidence…</p> : selected.detail && <>
             <div className="review-meta"><Status value={selected.detail.session.status} /><span>{selected.detail.artifacts.length} candidate artifacts</span></div>
             <div className="verification-note"><Icon name="shield" /> AI-selected candidate · Not independently verified</div>
+            {(() => {
+              const evaluation = selected.detail.events.find((event) => event.event_type === "RESULT_READY_FOR_REVIEW")?.payload?.evaluation;
+              return evaluation ? <section className="evaluation-summary">
+                <h3>Comparative assessment</h3>
+                <p>{evaluation.rationale}</p>
+                {evaluation.strengths?.length > 0 && <><strong>Strengths identified</strong><ul>{evaluation.strengths.map((item, i) => <li key={i}>{item}</li>)}</ul></>}
+                {evaluation.risks?.length > 0 && <><strong>Risks to consider</strong><ul>{evaluation.risks.map((item, i) => <li key={i}>{item}</li>)}</ul></>}
+                <span>Model-generated assessment. Not external fact-checking or independent verification.</span>
+              </section> : null;
+            })()}
             <h3 className="review-subhead">Selected work</h3>
             <pre className="artifact-content">{selectedContent || "No selected artifact is available yet."}</pre>
+            {selected.detail.session.status === "AWAITING_APPROVAL" && <div className="decision-actions">
+              <div><strong>Does this meet your objective?</strong><span>Your decision is recorded in the session history.</span></div>
+              <button className="secondary-button" disabled={busy} onClick={() => decideSession("REJECT")}>Reject result</button>
+              <button className="primary-button" disabled={busy} onClick={() => decideSession("APPROVE")}>{busy ? "Saving…" : "Approve result"} <Icon name="arrow" /></button>
+            </div>}
             <h3 className="review-subhead">Session history</h3>
             <div className="event-list">{selected.detail.events.map((event, i) => <div className="event-row" key={i}><span>{event.event_type.replaceAll("_"," ").toLowerCase()}</span><time>{new Date(event.occurred_at).toLocaleString()}</time></div>)}</div>
           </>}
