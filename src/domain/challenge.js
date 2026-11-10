@@ -66,7 +66,7 @@ export function planChallenge({
   const riskMultiplier = risk === "CRITICAL" ? 1.25 : risk === "HIGH" ? 1.15 : risk === "LOW" ? 0.85 : 1;
   const candidates = allowedStrategies
     .filter((strategy) => CHALLENGE_STRATEGIES.includes(strategy) && strategy !== "NO_CHALLENGE")
-    .filter((strategy) => remainingModelCalls >= (strategy === "COMPETITIVE_PROVOCATION" || strategy === "REVERSE_FRAMING" || strategy === "SECOND_LOOK" || strategy === "CONFIDENCE_CHALLENGE" ? 1 : 1))
+    .filter((strategy) => remainingModelCalls >= COST[strategy])
     .filter((strategy) => remainingToolCalls >= (strategy === "COUNTEREXAMPLE_SEARCH" ? 1 : 0))
     .map((strategy) => {
       const raw = (BASE_VALUE[strategy] + (taskBonuses[strategy] ?? 0)) *
