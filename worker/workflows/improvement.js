@@ -102,6 +102,28 @@ function parseJudgeResponse(content) {
   }
 }
 
+function parseFinalReview(content) {
+  const stripped = content.replace(/^\\s*```(?:json)?\\s*/i, "").replace(/\\s*```\\s*$/, "");
+  try {
+    const value = JSON.parse(stripped);
+    return {
+      assessment: typeof value.assessment === "string" ? value.assessment : "The final review did not provide an assessment.",
+      criteriaCoverage: Array.isArray(value.criteriaCoverage) ? value.criteriaCoverage.slice(0, 12) : [],
+      remainingRisks: Array.isArray(value.remainingRisks) ? value.remainingRisks.slice(0, 12) : [],
+      unverifiedClaims: Array.isArray(value.unverifiedClaims) ? value.unverifiedClaims.slice(0, 12) : [],
+      verificationStatus: "UNVERIFIED"
+    };
+  } catch {
+    return {
+      assessment: "The final review response could not be parsed into structured criteria coverage. Human review is required.",
+      criteriaCoverage: [],
+      remainingRisks: ["Final review was not valid structured JSON."],
+      unverifiedClaims: [],
+      verificationStatus: "UNVERIFIED"
+    };
+  }
+}
+
 export class ImprovementWorkflow extends WorkflowEntrypoint {
   async run(event, step) {
     const { sessionId, userId } = event.payload;
@@ -242,24 +264,92 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
     );
     const evaluation = parseJudgeResponse(evaluationText);
     const selectedArtifact = evaluation.preferred === "challenger" && challengerArtifact ? challengerArtifact : primaryArtifact;
+    const selectedContent = evaluation.preferred === "challenger" && challengerArtifact ? challengerContent : primaryContent;
+    const budget = JSON.parse(session.budget_json);
+    let finalArtifact = selectedArtifact;
+    let finalContent = selectedContent;
+    let finalReview = null;
+
+    if (budget.maxModelCalls >= 4) {
+      await step.do("mark-improving", async () => {
+        await setStatus(this.env.DB, sessionId, "IMPROVING");
+        await recordEvent(this.env.DB, sessionId, "FINAL_IMPROVEMENT_STARTED", {
+          basedOnArtifactId: selectedArtifact.id
+        });
+        return { status: "IMPROVING" };
+      });
+      finalContent = await step.do("final-improvement", async () => callModel(this.env, {
+        system: "You are OUTPERFORM's final improvement engine. Your job is to deliver a meaningfully better final artifact, not another critique. Integrate the strongest candidate material, fix the evaluator's identified weaknesses, satisfy every mandatory requirement and respect every constraint. Preserve correct content. Do not invent evidence, citations, tests or research. Make the output directly usable.",
+        prompt: `OBJECTIVE: ${session.objective}\nTASK TYPE: ${session.task_type}\n\n${criteriaText}\n\nBACKGROUND:\n${contextObject || "(No additional context supplied)"}\n\nBEST CANDIDATE:\n${selectedContent}\n\nCOMPARATIVE EVALUATION:\n${JSON.stringify(evaluation, null, 2)}\n\nProduce the strongest final version. Incorporate useful improvements, resolve identified risks where possible, and clearly label any uncertainty or work that still requires external verification.`,
+        temperature: 0.25,
+        maxTokens: 4500
+      }));
+      finalArtifact = await step.do("store-final-artifact", async () =>
+        storeArtifact(this.env, session, finalContent, "FINAL", 3)
+      );
+      await step.do("record-final-improvement", async () => {
+        await recordEvent(this.env.DB, sessionId, "FINAL_IMPROVEMENT_COMPLETED", {
+          artifactId: finalArtifact.id,
+          contentHash: finalArtifact.contentHash,
+          basedOnArtifactId: selectedArtifact.id
+        });
+        return { artifactId: finalArtifact.id };
+      });
+    }
+
+    if (budget.maxModelCalls >= 5) {
+      await step.do("mark-verifying", async () => {
+        await setStatus(this.env.DB, sessionId, "VERIFYING");
+        await recordEvent(this.env.DB, sessionId, "FINAL_REVIEW_STARTED", {
+          artifactId: finalArtifact.id,
+          verificationMode: "MODEL_REVIEW_ONLY"
+        });
+        return { status: "VERIFYING" };
+      });
+      const finalReviewText = await step.do("final-criteria-review", async () => callModel(this.env, {
+        system: "You are the final quality reviewer for OUTPERFORM. Review the final artifact against the user's explicit requirements and constraints. You cannot execute code, browse the web, inspect external systems or independently verify facts in this step. Return ONLY JSON with assessment (string), criteriaCoverage (array of objects or strings), remainingRisks (array), and unverifiedClaims (array). Never mark anything externally verified.",
+        prompt: `OBJECTIVE: ${session.objective}\nTASK TYPE: ${session.task_type}\n\n${criteriaText}\n\nFINAL ARTIFACT:\n${finalContent}\n\nAssess how well the artifact addresses each requirement, identify remaining gaps and flag claims needing external verification.`,
+        temperature: 0.1,
+        maxTokens: 1800
+      }));
+      finalReview = parseFinalReview(finalReviewText);
+      await step.do("record-final-review", async () => {
+        await recordEvent(this.env.DB, sessionId, "FINAL_REVIEW_COMPLETED", {
+          artifactId: finalArtifact.id,
+          review: finalReview,
+          verificationStatus: "UNVERIFIED"
+        });
+        return { status: "REVIEW_RECORDED" };
+      });
+    } else {
+      await step.do("record-final-review-skipped", async () => {
+        await recordEvent(this.env.DB, sessionId, "FINAL_REVIEW_SKIPPED", {
+          reason: "Model-call budget below five; human review remains required.",
+          verificationStatus: "UNVERIFIED"
+        });
+        return { status: "SKIPPED" };
+      });
+    }
 
     await step.do("await-human-review", async () => {
-      await setStatus(this.env.DB, sessionId, "AWAITING_APPROVAL", selectedArtifact.id);
+      await setStatus(this.env.DB, sessionId, "AWAITING_APPROVAL", finalArtifact.id);
       await recordEvent(this.env.DB, sessionId, "RESULT_READY_FOR_REVIEW", {
-        selectedArtifactId: selectedArtifact.id,
+        selectedArtifactId: finalArtifact.id,
         primaryArtifactId: primaryArtifact.id,
         challengerArtifactId: challengerArtifact?.id ?? null,
-        evaluation,
+        comparativeEvaluation: evaluation,
+        finalReview,
         verificationStatus: "UNVERIFIED"
       });
-      return { status: "AWAITING_APPROVAL", selectedArtifactId: selectedArtifact.id };
+      return { status: "AWAITING_APPROVAL", selectedArtifactId: finalArtifact.id };
     });
 
     return {
       status: "AWAITING_APPROVAL",
-      selectedArtifactId: selectedArtifact.id,
+      selectedArtifactId: finalArtifact.id,
       primaryArtifactId: primaryArtifact.id,
       challengerArtifactId: challengerArtifact?.id ?? null,
+      finalReview,
       verificationStatus: "UNVERIFIED"
     };
     } catch (error) {
