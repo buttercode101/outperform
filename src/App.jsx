@@ -296,7 +296,7 @@ export default function App() {
             <div className="review-meta"><Status value={selected.detail.session.status} /><span>{selected.detail.artifacts.length} candidate artifacts</span></div>
             <div className="verification-note"><Icon name="shield" /> AI-selected candidate · Not independently verified</div>
             {(() => {
-              const evaluation = selected.detail.events.find((event) => event.event_type === "RESULT_READY_FOR_REVIEW")?.payload?.evaluation;
+              const evaluation = selected.detail.events.find((event) => event.event_type === "RESULT_READY_FOR_REVIEW")?.payload?.comparativeEvaluation || selected.detail.events.find((event) => event.event_type === "RESULT_READY_FOR_REVIEW")?.payload?.evaluation;
               return evaluation ? <section className="evaluation-summary">
                 <h3>Comparative assessment</h3>
                 <p>{evaluation.rationale}</p>
@@ -309,6 +309,17 @@ export default function App() {
               {selected.detail.requirements?.length > 0 && <><h3>Acceptance criteria</h3><ul>{selected.detail.requirements.map((item) => <li key={item.id}>{item.description}</li>)}</ul></>}
               {selected.detail.constraints?.length > 0 && <><h3>Constraints</h3><ul>{selected.detail.constraints.map((item) => <li key={item.id}>{item.description}</li>)}</ul></>}
             </section>}
+            {(() => {
+              const finalReview = selected.detail.events.find((event) => event.event_type === "FINAL_REVIEW_COMPLETED")?.payload?.review;
+              return finalReview ? <section className="final-review-summary">
+                <h3>Final criteria review</h3>
+                <p>{finalReview.assessment}</p>
+                {finalReview.criteriaCoverage?.length > 0 && <><strong>Criteria coverage</strong><ul>{finalReview.criteriaCoverage.map((item, i) => <li key={i}>{typeof item === "string" ? item : JSON.stringify(item)}</li>)}</ul></>}
+                {finalReview.remainingRisks?.length > 0 && <><strong>Remaining risks</strong><ul>{finalReview.remainingRisks.map((item, i) => <li key={i}>{typeof item === "string" ? item : JSON.stringify(item)}</li>)}</ul></>}
+                {finalReview.unverifiedClaims?.length > 0 && <><strong>Claims needing verification</strong><ul>{finalReview.unverifiedClaims.map((item, i) => <li key={i}>{typeof item === "string" ? item : JSON.stringify(item)}</li>)}</ul></>}
+                <span>AI review only. No external verification has been performed.</span>
+              </section> : null;
+            })()}
             <h3 className="review-subhead">Selected work</h3>
             <pre className="artifact-content">{selectedContent || "No selected artifact is available yet."}</pre>
             {selected.detail.session.status === "AWAITING_APPROVAL" && <div className="decision-actions">
