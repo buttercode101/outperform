@@ -108,7 +108,7 @@ export default function App() {
   useEffect(() => {
     let active = true;
     fetch("/api/health").then((r) => r.json()).then((data) => {
-      if (active) setHealth(data.ok ? "online" : "offline");
+      if (active) setHealth(data.ok ? (data.authenticationConfigured && data.modelProviderConfigured ? "ready" : "setup") : "offline");
     }).catch(() => { if (active) setHealth("offline"); });
     return () => { active = false; };
   }, []);
@@ -232,7 +232,7 @@ export default function App() {
           <button className="nav-item" type="button" disabled><Icon name="book" /> Strategy library <span className="nav-soon">SOON</span></button>
         </nav>
         <div className="sidebar-bottom">
-          <div className="sidebar-status"><span className={health === "online" ? "status-dot online" : "status-dot"} /><span>Engine {health}</span></div>
+          <div className="sidebar-status"><span className={health === "ready" ? "status-dot online" : health === "setup" ? "status-dot setup" : "status-dot"} /><span>Engine {health}</span></div>
           <div className="sidebar-version">EARLY ACCESS BUILD · 0.1</div>
         </div>
       </aside>
