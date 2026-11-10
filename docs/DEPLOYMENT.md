@@ -8,10 +8,11 @@ In Cloudflare, open **My Profile → API Tokens → Create Token → Custom Toke
 
 Grant only the permissions needed by this deployment:
 
-- Account / Workers Scripts / Edit
-- Account / D1 / Read
-- Account / R2 Storage / Read
-- Account / Workers Workflows / Edit, if offered as a separate permission by the account UI
+- Account / Workers Scripts / Write (required for Wrangler to upload the Worker and its runtime secrets)
+- Account / D1 / Read (only if the deployment workflow needs to inspect D1)
+- Account / R2 Storage / Read (only if the deployment workflow needs to inspect R2)
+
+Scope the token to the exact Cloudflare account used by OUTPERFORM. Do not substitute a read-only Workers permission. The latest deployment reached Cloudflare but failed on `PUT /accounts/{account_id}/workers/scripts/outperform/secrets` with `No access to the specified resource`; the token therefore needs **Workers Scripts / Write** at minimum.
 
 Scope the token to the account used by OUTPERFORM. Do not use the Global API Key.
 
