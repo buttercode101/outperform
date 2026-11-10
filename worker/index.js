@@ -155,16 +155,29 @@ async function handleApi(request, env) {
         if (!["CREATED", "BLOCKED"].includes(session.status)) {
           return error("INVALID_SESSION_STATE", `This session cannot start from ${session.status}.`, 409);
         }
-        const instanceId = `${session.id}-${crypto.randomUUID()}`;
-        const instance = await env.OUTPERFORM_WORKFLOW.create({
-          id: instanceId,
-          params: { sessionId: session.id, userId: user.id }
-        });
-        await env.DB.prepare(
-          "INSERT INTO session_events (id, session_id, event_type, payload_json, occurred_at) VALUES (?, ?, ?, ?, ?)"
-        ).bind(crypto.randomUUID(), session.id, "WORKFLOW_STARTED",
-          JSON.stringify({ workflowInstanceId: instance.id }), new Date().toISOString()).run();
-        return json({ workflowInstanceId: instance.id, status: "STARTED" }, 202);
+        const claim = await env.DB.prepare(
+          "UPDATE work_sessions SET status = 'UNDERSTANDING', version = version + 1, updated_at = ? WHERE id = ? AND owner_id = ? AND status IN ('CREATED','BLOCKED')"
+        ).bind(new Date().toISOString(), session.id, user.id).run();
+        if ((claim.meta?.changes ?? 0) !== 1) {
+          return error("SESSION_ALREADY_RUNNING", "This session has already been started or changed.", 409);
+        }
+        const instanceId = `${session.id}-run-${session.version + 1}`;
+        try {
+          const instance = await env.OUTPERFORM_WORKFLOW.create({
+            id: instanceId,
+            params: { sessionId: session.id, userId: user.id }
+          });
+          await env.DB.prepare(
+            "INSERT INTO session_events (id, session_id, event_type, payload_json, occurred_at) VALUES (?, ?, ?, ?, ?)"
+          ).bind(crypto.randomUUID(), session.id, "WORKFLOW_STARTED",
+            JSON.stringify({ workflowInstanceId: instance.id }), new Date().toISOString()).run();
+          return json({ workflowInstanceId: instance.id, status: "STARTED" }, 202);
+        } catch (workflowError) {
+          await env.DB.prepare(
+            "UPDATE work_sessions SET status = ?, version = version + 1, updated_at = ? WHERE id = ? AND owner_id = ? AND status = 'UNDERSTANDING'"
+          ).bind(session.status, new Date().toISOString(), session.id, user.id).run();
+          throw workflowError;
+        }
       }
 
       if (action === null && request.method === "GET") {
