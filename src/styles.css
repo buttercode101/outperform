@@ -137,3 +137,9 @@ button:disabled{cursor:not-allowed;opacity:.45}
 .decision-actions>div span{font-size:9px;color:#8a8d84}
 .decision-actions .secondary-button,.decision-actions .primary-button{height:36px;font-size:10px}
 @media(max-width:520px){.decision-actions{align-items:stretch}.decision-actions>div{flex-basis:100%;margin-bottom:5px}.decision-actions button{flex:1}}
+
+
+.criteria-review{margin:18px 0;padding:14px 16px;border-left:2px solid #9aa996;background:#f6f6f1}
+.criteria-review h3{font:700 10px Manrope,sans-serif;color:#5c6859;margin:0 0 6px}
+.criteria-review h3:not(:first-child){margin-top:13px}
+.criteria-review ul{margin:0;padding-left:16px;color:#70766d;font-size:10px;line-height:1.7}
