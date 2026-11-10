@@ -29,4 +29,9 @@ test("finding adjudication remains uncertain when evidence conflicts", () => {
   ];
   assert.equal(adjudicateFinding(finding, evidence), "UNCERTAIN");
   assert.equal(adjudicateFinding(finding, []), "UNVERIFIED");
+  const linked = createEvidence({
+    sessionId: "s1", findingId: "f1", claim: "Observed regression",
+    status: "VERIFIED", sourceType: "TEST_RUN", sourceRef: "run:123"
+  });
+  assert.equal(adjudicateFinding(finding, [linked]), "VERIFIED");
 });
