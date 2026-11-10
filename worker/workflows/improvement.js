@@ -113,6 +113,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       return row;
     });
 
+    try {
     await step.do("mark-understanding", async () => {
       await setStatus(this.env.DB, sessionId, "UNDERSTANDING");
       await recordEvent(this.env.DB, sessionId, "SESSION_UNDERSTANDING");
@@ -240,5 +241,16 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       challengerArtifactId: challengerArtifact?.id ?? null,
       verificationStatus: "UNVERIFIED"
     };
+    } catch (error) {
+      await step.do("record-workflow-failure", async () => {
+        await setStatus(this.env.DB, sessionId, "FAILED");
+        await recordEvent(this.env.DB, sessionId, "WORKFLOW_FAILED", {
+          code: error.code ?? "WORKFLOW_ERROR",
+          message: String(error.message ?? "Unexpected workflow failure").slice(0, 500)
+        });
+        return { status: "FAILED" };
+      });
+      return { status: "FAILED", reason: error.code ?? "WORKFLOW_ERROR" };
+    }
   }
 }
