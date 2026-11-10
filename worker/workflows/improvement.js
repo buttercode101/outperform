@@ -141,7 +141,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
     const acceptanceCriteria = await step.do("load-acceptance-criteria", async () => {
       const [requirements, constraints] = await Promise.all([
         this.env.DB.prepare("SELECT description, mandatory, verification_method FROM requirements WHERE session_id = ? ORDER BY created_at").bind(sessionId).all(),
-        this.env.DB.prepare("SELECT description, type FROM constraints WHERE session_id = ? ORDER BY created_at").bind(sessionId).all()
+        this.env.DB.prepare("SELECT description, constraint_type AS type FROM session_constraints WHERE session_id = ? ORDER BY created_at").bind(sessionId).all()
       ]);
       return {
         requirements: requirements.results ?? [],
