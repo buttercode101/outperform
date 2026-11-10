@@ -67,6 +67,8 @@ The GitHub Quality workflow runs all three checks and retains the generated Clou
 
 ## Production deployment
 
+See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for the exact token, secret and live-verification checklist.
+
 1. Add `CLOUDFLARE_API_TOKEN` as a GitHub Actions repository secret. It needs permission to deploy Workers and manage the configured bindings/workflow.
 2. Configure production Worker secrets `BETTER_AUTH_SECRET`, `OPENROUTER_API_KEY`, and `OPENROUTER_MODEL`.
 3. Run **Deploy production** from GitHub Actions using workflow dispatch.
