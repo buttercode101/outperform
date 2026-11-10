@@ -176,7 +176,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       { retries: { limit: 2, delay: "3 seconds", backoff: "exponential" } },
       async () => callModel(this.env, {
         system: "You are the primary performance engine inside OUTPERFORM. Produce the strongest useful deliverable for the user's objective. Respect constraints, distinguish facts from assumptions, and do not claim tests or research were performed unless they were.",
-        prompt: `TASK TYPE: ${session.task_type}\nOBJECTIVE: ${session.objective}\nCONTEXT AND EXISTING WORK:\n${contextObject || "(No additional context supplied)"}\n\nProduce a complete first attempt. State material assumptions and unresolved uncertainties.`,
+        prompt: `TASK TYPE: ${session.task_type}\nOBJECTIVE: ${session.objective}\nCONTEXT AND EXISTING WORK:\n${contextObject || "(No additional context supplied)"}\n\n${criteriaText}\n\nProduce a complete first attempt. State material assumptions and unresolved uncertainties.`,
         temperature: 0.45
       })
     );
@@ -211,7 +211,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         { retries: { limit: 2, delay: "3 seconds", backoff: "exponential" } },
         async () => callModel(this.env, {
           system: "You are an independent rival solution engine. You have not seen the primary answer. Do not imitate it. Solve the user's task independently and aim to outperform a strong competing system. Do not claim verification you did not perform.",
-          prompt: `TASK TYPE: ${session.task_type}\nOBJECTIVE: ${session.objective}\nCONTEXT AND EXISTING WORK:\n${contextObject || "(No additional context supplied)"}\n\nProduce a complete independent alternative. Surface assumptions and uncertainty.`,
+          prompt: `TASK TYPE: ${session.task_type}\nOBJECTIVE: ${session.objective}\nCONTEXT AND EXISTING WORK:\n${contextObject || "(No additional context supplied)"}\n\n${criteriaText}\n\nProduce a complete independent alternative. Surface assumptions and uncertainty.`,
           temperature: 0.65
         })
       );
@@ -235,7 +235,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
     const evaluationText = await step.do("independent-adjudication", async () =>
       callModel(this.env, {
         system: "You are an independent evaluator. Compare the candidates against the stated objective and task type. Return ONLY valid JSON with keys preferred (primary|challenger), rationale, strengths (array), risks (array), improvementIdeas (array). Do not claim external verification, factual validation, code execution or test results. If uncertain, prefer primary and explain why.",
-        prompt: `OBJECTIVE: ${session.objective}\nTASK TYPE: ${session.task_type}\nPRIMARY CANDIDATE:\n${primaryContent}\n\nCHALLENGER CANDIDATE:\n${challengerArtifact ? challengerContent : "(No challenger candidate was produced)"}\n\nCompare for correctness, completeness, clarity, constraint adherence and likely usefulness. This is a model evaluation, not external verification.`,
+        prompt: `OBJECTIVE: ${session.objective}\nTASK TYPE: ${session.task_type}\n${criteriaText}\n\nPRIMARY CANDIDATE:\n${primaryContent}\n\nCHALLENGER CANDIDATE:\n${challengerArtifact ? challengerContent : "(No challenger candidate was produced)"}\n\nCompare for correctness, completeness, clarity, constraint adherence and likely usefulness. This is a model evaluation, not external verification.`,
         temperature: 0.1,
         maxTokens: 1800
       })
