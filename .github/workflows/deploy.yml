@@ -2,17 +2,6 @@ name: Deploy production
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "src/**"
-      - "worker/**"
-      - "migrations/**"
-      - "index.html"
-      - "package.json"
-      - "vite.config.js"
-      - "wrangler.jsonc"
-      - ".github/workflows/deploy.yml"
 
 permissions:
   contents: read
