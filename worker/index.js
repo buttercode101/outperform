@@ -90,6 +90,12 @@ async function createWorkSession(request, env, user) {
 
   for (const constraint of session.constraints) {
     statements.push(env.DB.prepare(
+      "INSERT INTO session_constraints (id, session_id, description, constraint_type, created_at) VALUES (?, ?, ?, ?, ?)"
+    ).bind(constraint.id, session.id, constraint.description, constraint.type, session.createdAt));
+  }
+
+  for (const constraint of session.constraints) {
+    statements.push(env.DB.prepare(
       "INSERT INTO constraints (id, session_id, description, type, created_at) VALUES (?, ?, ?, ?, ?)"
     ).bind(constraint.id, session.id, constraint.description, constraint.type, session.createdAt));
   }
@@ -219,7 +225,7 @@ async function handleApi(request, env) {
         const [artifacts, requirements, constraints, events] = await Promise.all([
           env.DB.prepare("SELECT id, kind, object_key, content_hash, parent_artifact_id, created_by, version, created_at FROM artifacts WHERE session_id = ? ORDER BY version DESC").bind(sessionId).all(),
           env.DB.prepare("SELECT id, description, source, mandatory, verification_method FROM requirements WHERE session_id = ? ORDER BY created_at").bind(sessionId).all(),
-          env.DB.prepare("SELECT id, description, type, created_at FROM constraints WHERE session_id = ? ORDER BY created_at").bind(sessionId).all(),
+          env.DB.prepare("SELECT id, description, constraint_type, created_at FROM session_constraints WHERE session_id = ? ORDER BY created_at").bind(sessionId).all(),
           env.DB.prepare("SELECT event_type, payload_json, occurred_at FROM session_events WHERE session_id = ? ORDER BY occurred_at").bind(sessionId).all()
         ]);
         return json({
