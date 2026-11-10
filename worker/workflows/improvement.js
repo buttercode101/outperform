@@ -157,7 +157,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       ...(acceptanceCriteria.constraints.length
         ? acceptanceCriteria.constraints.map((item) => `- [${item.type}] ${item.description}`)
         : ["(No additional constraints supplied)"])
-    ].join("\\n");
+    ].join("\n");
 
     await step.do("mark-baseline", async () => {
       await setStatus(this.env.DB, sessionId, "BASELINING");
