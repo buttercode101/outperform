@@ -133,8 +133,8 @@ export default function App() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           taskType, objective, context,
-          requirements: requirementsText.split("\\n").map((line) => line.trim()).filter(Boolean).map((description) => ({ description, source: "USER", mandatory: true })),
-          constraints: constraintsText.split("\\n").map((line) => line.trim()).filter(Boolean).map((description) => ({ description, type: "OTHER" }))
+          requirements: requirementsText.split("\n").map((line) => line.trim()).filter(Boolean).map((description) => ({ description, source: "USER", mandatory: true })),
+          constraints: constraintsText.split("\n").map((line) => line.trim()).filter(Boolean).map((description) => ({ description, type: "OTHER" }))
         })
       });
       const data = await response.json();
