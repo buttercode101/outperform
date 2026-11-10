@@ -31,8 +31,6 @@ export async function runImprovementSession({
   onEvent = () => {}
 }) {
   invariant(initialSession?.status === "CREATED", "SESSION_NOT_READY", "Only a newly created session can start this workflow.");
-  assertSessionArtifact(initialSession, baselineArtifact, "Baseline artifact");
-
   const events = [];
   const emit = (type, data = {}) => {
     const event = appendEvent(events, type, data, now);
@@ -47,6 +45,7 @@ export async function runImprovementSession({
   let verification = null;
 
   try {
+    assertSessionArtifact(session, baselineArtifact, "Baseline artifact");
     session = transitionSession(session, "UNDERSTANDING", now());
     emit("SESSION_UNDERSTANDING");
     session = transitionSession(session, "BASELINING", now());
