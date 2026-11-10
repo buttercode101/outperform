@@ -12,15 +12,15 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "outperform-dev",
-      "database_id": "a6db567d-78eb-4a8d-a51c-ffa0571814a2",
+      "database_name": "outperform-prod",
+      "database_id": "cb25ae38-f5bc-4e96-8ea2-b049456b5187",
       "migrations_dir": "migrations"
     }
   ],
   "r2_buckets": [
     {
       "binding": "ARTIFACTS",
-      "bucket_name": "outperform-artifacts-dev"
+      "bucket_name": "outperform-artifacts-prod"
     }
   ],
   "workflows": [
@@ -30,5 +30,31 @@
       "class_name": "ImprovementWorkflow"
     }
   ],
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  "env": {
+    "dev": {
+      "name": "outperform-dev",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "outperform-dev",
+          "database_id": "a6db567d-78eb-4a8d-a51c-ffa0571814a2",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "ARTIFACTS",
+          "bucket_name": "outperform-artifacts-dev"
+        }
+      ],
+      "workflows": [
+        {
+          "name": "outperform-improvement-dev",
+          "binding": "OUTPERFORM_WORKFLOW",
+          "class_name": "ImprovementWorkflow"
+        }
+      ]
+    }
+  }
 }
