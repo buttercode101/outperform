@@ -12,10 +12,12 @@ The first executable product slice is under active development.
 
 - React workspace with email/password authentication.
 - Owner-scoped work sessions and context storage.
-- Durable Cloudflare Workflow for primary execution, independent challenge and adjudication.
+- Durable Cloudflare Workflow for primary execution, independent challenge, comparative adjudication, a final improvement pass and a separate criteria review.
 - Versioned Markdown artifacts stored in R2, with content hashes.
 - D1 event history, requirements, approval and evidence tables.
-- Explicit human approve/reject decisions.
+- Explicit human approve/reject decisions, recorded against the session.
+- User requirements and constraints are persisted and passed to every model stage.
+- Default five-call budget supports the full candidate, improvement and review loop; smaller budgets skip later stages explicitly.
 - Model evaluation is labeled as model-generated; it is not represented as external verification.
 - Failed workflows are recorded as failed rather than left in an active state.
 - Concurrent start requests are guarded by a conditional database claim.
