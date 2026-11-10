@@ -305,6 +305,10 @@ export default function App() {
                 <span>Model-generated assessment. Not external fact-checking or independent verification.</span>
               </section> : null;
             })()}
+            {(selected.detail.requirements?.length > 0 || selected.detail.constraints?.length > 0) && <section className="criteria-review">
+              {selected.detail.requirements?.length > 0 && <><h3>Acceptance criteria</h3><ul>{selected.detail.requirements.map((item) => <li key={item.id}>{item.description}</li>)}</ul></>}
+              {selected.detail.constraints?.length > 0 && <><h3>Constraints</h3><ul>{selected.detail.constraints.map((item) => <li key={item.id}>{item.description}</li>)}</ul></>}
+            </section>}
             <h3 className="review-subhead">Selected work</h3>
             <pre className="artifact-content">{selectedContent || "No selected artifact is available yet."}</pre>
             {selected.detail.session.status === "AWAITING_APPROVAL" && <div className="decision-actions">
