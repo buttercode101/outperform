@@ -10,6 +10,6 @@
   "scripts": {
     "test": "node --test",
     "test:watch": "node --test --watch",
-    "check": "node --check src/domain/session.js && node --check src/domain/artifact.js && node --check src/domain/evidence.js"
+    "check": "for file in src/domain/*.js; do node --check \"$file\"; done"
   }
 }
