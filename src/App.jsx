@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { authClient } from "./lib/auth-client.js";
 
 const taskTypes = [
   { value: "CODE", label: "Software & code" },
@@ -12,7 +13,6 @@ const taskTypes = [
 function Mark() {
   return <span className="brand-mark" aria-hidden="true"><span /><span /><span /></span>;
 }
-
 function Icon({ name }) {
   const paths = {
     plus: <><path d="M12 5v14M5 12h14" /></>,
@@ -25,48 +25,184 @@ function Icon({ name }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
 
+function AuthScreen() {
+  const [mode, setMode] = useState("signin");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const result = mode === "signup"
+        ? await authClient.signUp.email({ name: name.trim(), email: email.trim(), password })
+        : await authClient.signIn.email({ email: email.trim(), password });
+      if (result.error) throw new Error(result.error.message || "Authentication failed.");
+    } catch (e) {
+      setError(e.message || "Could not sign in.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <main className="auth-screen">
+      <a className="brand auth-brand" href="/"><Mark /><span>OUTPERFORM</span></a>
+      <section className="auth-panel">
+        <span className="section-kicker">PRIVATE WORKSPACE</span>
+        <h1>{mode === "signup" ? "Create your workspace." : "Welcome back."}</h1>
+        <p>Better work starts with a clear objective. Sign in to continue.</p>
+        <form onSubmit={submit}>
+          {mode === "signup" && <><label htmlFor="auth-name">Your name</label><input id="auth-name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" required /></>}
+          <label htmlFor="auth-email">Email address</label>
+          <input id="auth-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
+          <label htmlFor="auth-password">Password</label>
+          <input id="auth-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "signup" ? "new-password" : "current-password"} minLength={10} required />
+          {error && <p className="form-error" role="alert">{error}</p>}
+          <button className="primary-button auth-submit" disabled={busy}>{busy ? "Please wait…" : mode === "signup" ? "Create account" : "Sign in"} <Icon name="arrow" /></button>
+        </form>
+        <p className="auth-switch">{mode === "signup" ? "Already have an account?" : "New to OUTPERFORM?"} <button onClick={() => { setMode(mode === "signup" ? "signin" : "signup"); setError(""); }}>{mode === "signup" ? "Sign in" : "Create an account"}</button></p>
+        <p className="auth-footnote">Private by default. Your work is not published or shared.</p>
+      </section>
+    </main>
+  );
+}
+
+function Status({ value }) {
+  const labels = {
+    CREATED: "Not started", UNDERSTANDING: "Understanding", BASELINING: "Capturing baseline",
+    EXECUTING: "Working", CHALLENGING: "Challenging", EVALUATING: "Evaluating",
+    IMPROVING: "Improving", VERIFYING: "Verifying", AWAITING_APPROVAL: "Ready to review",
+    BLOCKED: "Needs setup", COMPLETED: "Completed", FAILED: "Failed", CANCELLED: "Cancelled"
+  };
+  return <span className={`session-status status-${value?.toLowerCase()}`}><i />{labels[value] || value}</span>;
+}
+
 export default function App() {
+  const { data: authSession, isPending: authPending } = authClient.useSession();
   const [health, setHealth] = useState("checking");
+  const [sessions, setSessions] = useState([]);
   const [showComposer, setShowComposer] = useState(false);
   const [taskType, setTaskType] = useState("CODE");
   const [objective, setObjective] = useState("");
   const [context, setContext] = useState("");
+  const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const [selected, setSelected] = useState(null);
+  const [selectedContent, setSelectedContent] = useState("");
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  async function loadSessions() {
+    const response = await fetch("/api/sessions");
+    if (!response.ok) throw new Error("Could not load sessions.");
+    const data = await response.json();
+    setSessions(data.sessions || []);
+  }
 
   useEffect(() => {
     let active = true;
-    fetch("/api/health")
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error("API unavailable")))
-      .then((data) => { if (active) setHealth(data.ok ? "online" : "offline"); })
-      .catch(() => { if (active) setHealth("offline"); });
+    fetch("/api/health").then((r) => r.json()).then((data) => {
+      if (active) setHealth(data.ok ? "online" : "offline");
+    }).catch(() => { if (active) setHealth("offline"); });
     return () => { active = false; };
   }, []);
 
-  function prepareSession(event) {
+  useEffect(() => {
+    if (!authSession?.user) return;
+    let active = true;
+    const refresh = () => loadSessions().catch(() => {});
+    refresh();
+    const interval = window.setInterval(refresh, 5000);
+    return () => { active = false; window.clearInterval(interval); };
+  }, [authSession?.user?.id]);
+
+  async function submitSession(event) {
     event.preventDefault();
     if (!objective.trim()) return;
-    setNotice("Your task brief is ready. Account sign-in and durable session creation are the next integration milestone.");
+    setBusy(true);
+    setNotice("");
+    try {
+      const response = await fetch("/api/sessions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ taskType, objective, context })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || data.error || "Could not create the session.");
+      setShowComposer(false);
+      setObjective("");
+      setContext("");
+      await loadSessions();
+      const startResponse = await fetch(`/api/sessions/${data.session.id}/start`, { method: "POST" });
+      if (!startResponse.ok) {
+        const startError = await startResponse.json();
+        throw new Error(startError.message || startError.error || "Session created but could not be started.");
+      }
+      await loadSessions();
+    } catch (e) {
+      setNotice(e.message);
+    } finally {
+      setBusy(false);
+    }
   }
+
+  async function startSession(session) {
+    setBusy(true);
+    setNotice("");
+    try {
+      const response = await fetch(`/api/sessions/${session.id}/start`, { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || data.error || "Could not start session.");
+      await loadSessions();
+    } catch (e) {
+      setNotice(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function openSession(session) {
+    setDetailLoading(true);
+    setSelected({ session, detail: null });
+    setSelectedContent("");
+    try {
+      const response = await fetch(`/api/sessions/${session.id}`);
+      const detail = await response.json();
+      if (!response.ok) throw new Error(detail.message || "Could not load session.");
+      const best = detail.artifacts.find((item) => item.id === detail.session.bestArtifactId);
+      if (best) {
+        const artifactResponse = await fetch(`/api/sessions/${session.id}/artifacts/${best.id}`);
+        const artifact = await artifactResponse.json();
+        if (artifactResponse.ok) setSelectedContent(artifact.content || "");
+      }
+      setSelected({ session, detail });
+    } catch (e) {
+      setNotice(e.message);
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  if (authPending) return <div className="boot-screen"><Mark /><span>Loading your workspace…</span></div>;
+  if (!authSession?.user) return <AuthScreen />;
 
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <a className="brand" href="/" aria-label="OUTPERFORM home">
-          <Mark />
-          <span>OUTPERFORM</span>
-        </a>
+        <a className="brand" href="/" aria-label="OUTPERFORM home"><Mark /><span>OUTPERFORM</span></a>
         <div className="workspace-label">WORKSPACE</div>
         <nav className="nav-list" aria-label="Main navigation">
           <button className="nav-item active" type="button"><Icon name="layers" /> Overview</button>
-          <button className="nav-item" type="button" onClick={() => setShowComposer(true)}><Icon name="plus" /> New session</button>
+          <button className="nav-item" type="button" onClick={() => { setShowComposer(true); setNotice(""); }}><Icon name="plus" /> New session</button>
           <button className="nav-item" type="button" disabled><Icon name="activity" /> Experiments <span className="nav-soon">SOON</span></button>
           <button className="nav-item" type="button" disabled><Icon name="book" /> Strategy library <span className="nav-soon">SOON</span></button>
         </nav>
         <div className="sidebar-bottom">
-          <div className="sidebar-status">
-            <span className={health === "online" ? "status-dot online" : "status-dot"} />
-            <span>Engine {health === "checking" ? "checking" : health}</span>
-          </div>
+          <div className="sidebar-status"><span className={health === "online" ? "status-dot online" : "status-dot"} /><span>Engine {health}</span></div>
           <div className="sidebar-version">EARLY ACCESS BUILD · 0.1</div>
         </div>
       </aside>
@@ -74,64 +210,66 @@ export default function App() {
       <main className="main-content">
         <header className="topbar">
           <div className="breadcrumb">Workspace <span>/</span> Overview</div>
-          <div className="topbar-right"><span className="private-label"><Icon name="shield" /> Private workspace</span><div className="avatar">O</div></div>
+          <div className="topbar-right"><span className="private-label"><Icon name="shield" /> Private workspace</span><span className="user-email">{authSession.user.email}</span><button className="signout-button" onClick={() => authClient.signOut()}>Sign out</button><div className="avatar">{(authSession.user.name || "O").slice(0,1).toUpperCase()}</div></div>
         </header>
 
         <section className="hero">
           <div className="eyebrow"><span className="eyebrow-line" /> THE WORK IMPROVEMENT ENGINE</div>
           <h1>Good work is a starting point.</h1>
           <p className="hero-copy">Bring an idea, a draft, a project or finished work. Challenge it, improve it and see exactly what got better.</p>
-          <button className="primary-button" onClick={() => { setShowComposer(true); setNotice(""); }}>
-            <Icon name="plus" /> Start with your work <Icon name="arrow" />
-          </button>
+          <button className="primary-button" onClick={() => { setShowComposer(true); setNotice(""); }}><Icon name="plus" /> Start with your work <Icon name="arrow" /></button>
         </section>
 
         <section className="principles">
-          <article className="principle">
-            <div className="principle-icon"><Icon name="layers" /></div>
-            <div><h3>Start anywhere</h3><p>From a rough idea to a finished deliverable. Your context and constraints come first.</p></div>
-          </article>
-          <article className="principle">
-            <div className="principle-icon"><Icon name="activity" /></div>
-            <div><h3>Challenge the result</h3><p>Independent alternatives and targeted challenges expose what a first pass can miss.</p></div>
-          </article>
-          <article className="principle">
-            <div className="principle-icon"><Icon name="shield" /></div>
-            <div><h3>Prove the difference</h3><p>Keep the original. Verify changes. See evidence, regressions and remaining risks.</p></div>
-          </article>
+          <article className="principle"><div className="principle-icon"><Icon name="layers" /></div><div><h3>Start anywhere</h3><p>From a rough idea to a finished deliverable. Your context and constraints come first.</p></div></article>
+          <article className="principle"><div className="principle-icon"><Icon name="activity" /></div><div><h3>Challenge the result</h3><p>Independent alternatives and targeted challenges expose what a first pass can miss.</p></div></article>
+          <article className="principle"><div className="principle-icon"><Icon name="shield" /></div><div><h3>Prove the difference</h3><p>Keep the original. Verify changes. See evidence, regressions and remaining risks.</p></div></article>
         </section>
 
         <section className="work-area">
-          <div className="section-heading"><div><span className="section-kicker">YOUR WORK</span><h2>Improvement sessions</h2></div><span className="empty-count">0 sessions</span></div>
-          <div className="empty-state">
-            <div className="empty-symbol"><Mark /></div>
-            <h3>Your next breakthrough starts here.</h3>
-            <p>There are no sessions yet. Start with something you're working on and give it room to get better.</p>
-            <button className="text-button" onClick={() => { setShowComposer(true); setNotice(""); }}>Create your first session <Icon name="arrow" /></button>
-          </div>
+          <div className="section-heading"><div><span className="section-kicker">YOUR WORK</span><h2>Improvement sessions</h2></div><span className="empty-count">{sessions.length} {sessions.length === 1 ? "session" : "sessions"}</span></div>
+          {notice && <p className="notice" role="status">{notice}</p>}
+          {sessions.length === 0 ? (
+            <div className="empty-state"><div className="empty-symbol"><Mark /></div><h3>Your next breakthrough starts here.</h3><p>There are no sessions yet. Start with something you're working on and give it room to get better.</p><button className="text-button" onClick={() => setShowComposer(true)}>Create your first session <Icon name="arrow" /></button></div>
+          ) : (
+            <div className="session-list">{sessions.map((session) => (
+              <article className="session-row" key={session.id}>
+                <div className="session-main"><span className="session-type">{session.task_type}</span><h3>{session.objective}</h3><span className="session-date">{new Date(session.updated_at).toLocaleString()}</span></div>
+                <div className="session-actions"><Status value={session.status} />{["CREATED","BLOCKED"].includes(session.status) && <button className="small-action" disabled={busy} onClick={() => startSession(session)}>Run <Icon name="arrow" /></button>}{["AWAITING_APPROVAL","COMPLETED","FAILED"].includes(session.status) && <button className="small-action" onClick={() => openSession(session)}>Review <Icon name="arrow" /></button>}</div>
+              </article>
+            ))}</div>
+          )}
         </section>
-
         <footer className="footer"><span>OUTPERFORM</span><span>Better work. Backed by evidence.</span></footer>
       </main>
 
-      {showComposer && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowComposer(false); }}>
-          <section className="composer" role="dialog" aria-modal="true" aria-labelledby="composer-title">
-            <div className="composer-header"><div><span className="section-kicker">NEW WORK SESSION</span><h2 id="composer-title">What are we improving?</h2></div><button className="close-button" onClick={() => setShowComposer(false)} aria-label="Close">×</button></div>
-            <form onSubmit={prepareSession}>
-              <label htmlFor="task-type">What kind of work is this?</label>
-              <select id="task-type" value={taskType} onChange={(event) => setTaskType(event.target.value)}>{taskTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
-              <label htmlFor="objective">What do you want to achieve?</label>
-              <textarea id="objective" value={objective} onChange={(event) => setObjective(event.target.value)} placeholder="Describe the outcome you want—not just the steps you think are needed." rows={3} required />
-              <label htmlFor="context">What should we know? <span>Optional</span></label>
-              <textarea id="context" value={context} onChange={(event) => setContext(event.target.value)} placeholder="Paste existing work, context, constraints, links or known problems." rows={5} />
-              {notice && <p className="notice" role="status">{notice}</p>}
-              <div className="composer-actions"><button type="button" className="secondary-button" onClick={() => setShowComposer(false)}>Cancel</button><button type="submit" className="primary-button" disabled={!objective.trim()}>Prepare session <Icon name="arrow" /></button></div>
-            </form>
-            <p className="composer-note">Your original work will be preserved. No changes are applied without your approval.</p>
-          </section>
-        </div>
-      )}
+      {showComposer && <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowComposer(false); }}>
+        <section className="composer" role="dialog" aria-modal="true" aria-labelledby="composer-title">
+          <div className="composer-header"><div><span className="section-kicker">NEW WORK SESSION</span><h2 id="composer-title">What are we improving?</h2></div><button className="close-button" onClick={() => setShowComposer(false)} aria-label="Close">×</button></div>
+          <form onSubmit={submitSession}>
+            <label htmlFor="task-type">What kind of work is this?</label><select id="task-type" value={taskType} onChange={(e) => setTaskType(e.target.value)}>{taskTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
+            <label htmlFor="objective">What do you want to achieve?</label><textarea id="objective" value={objective} onChange={(e) => setObjective(e.target.value)} placeholder="Describe the outcome you want—not just the steps you think are needed." rows={3} required />
+            <label htmlFor="context">What should we know? <span>Optional</span></label><textarea id="context" value={context} onChange={(e) => setContext(e.target.value)} placeholder="Paste existing work, context, constraints or known problems." rows={5} />
+            {notice && <p className="notice" role="alert">{notice}</p>}
+            <div className="composer-actions"><button type="button" className="secondary-button" onClick={() => setShowComposer(false)}>Cancel</button><button type="submit" className="primary-button" disabled={busy || !objective.trim()}>{busy ? "Creating…" : "Create and run"} <Icon name="arrow" /></button></div>
+          </form>
+          <p className="composer-note">Your original work will be preserved. AI evaluation is not the same as independent verification.</p>
+        </section>
+      </div>}
+
+      {selected && <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setSelected(null); }}>
+        <section className="review-panel" role="dialog" aria-modal="true" aria-labelledby="review-title">
+          <div className="composer-header"><div><span className="section-kicker">SESSION REVIEW</span><h2 id="review-title">{selected.session.objective}</h2></div><button className="close-button" onClick={() => setSelected(null)} aria-label="Close">×</button></div>
+          {detailLoading ? <p>Loading session evidence…</p> : selected.detail && <>
+            <div className="review-meta"><Status value={selected.detail.session.status} /><span>{selected.detail.artifacts.length} candidate artifacts</span></div>
+            <div className="verification-note"><Icon name="shield" /> AI-selected candidate · Not independently verified</div>
+            <h3 className="review-subhead">Selected work</h3>
+            <pre className="artifact-content">{selectedContent || "No selected artifact is available yet."}</pre>
+            <h3 className="review-subhead">Session history</h3>
+            <div className="event-list">{selected.detail.events.map((event, i) => <div className="event-row" key={i}><span>{event.event_type.replaceAll("_"," ").toLowerCase()}</span><time>{new Date(event.occurred_at).toLocaleString()}</time></div>)}</div>
+          </>}
+        </section>
+      </div>}
     </div>
   );
 }
