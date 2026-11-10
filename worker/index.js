@@ -129,7 +129,7 @@ async function handleApi(request, env) {
       return createWorkSession(request, env, user);
     }
 
-    const artifactMatch = url.pathname.match(/^\\/api\\/sessions\\/([^/]+)\\/artifacts\\/([^/]+)$/);
+    const artifactMatch = url.pathname.match(/^\/api\/sessions\/([^/]+)\/artifacts\/([^/]+)$/);
     if (artifactMatch && request.method === "GET") {
       const sessionId = decodeURIComponent(artifactMatch[1]);
       const artifactId = decodeURIComponent(artifactMatch[2]);
