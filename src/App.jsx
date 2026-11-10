@@ -90,6 +90,8 @@ export default function App() {
   const [taskType, setTaskType] = useState("CODE");
   const [objective, setObjective] = useState("");
   const [context, setContext] = useState("");
+  const [requirementsText, setRequirementsText] = useState("");
+  const [constraintsText, setConstraintsText] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [selected, setSelected] = useState(null);
@@ -129,13 +131,19 @@ export default function App() {
       const response = await fetch("/api/sessions", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ taskType, objective, context })
+        body: JSON.stringify({
+          taskType, objective, context,
+          requirements: requirementsText.split("\\n").map((line) => line.trim()).filter(Boolean).map((description) => ({ description, source: "USER", mandatory: true })),
+          constraints: constraintsText.split("\\n").map((line) => line.trim()).filter(Boolean).map((description) => ({ description, type: "OTHER" }))
+        })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || data.error || "Could not create the session.");
       setShowComposer(false);
       setObjective("");
       setContext("");
+      setRequirementsText("");
+      setConstraintsText("");
       await loadSessions();
       const startResponse = await fetch(`/api/sessions/${data.session.id}/start`, { method: "POST" });
       if (!startResponse.ok) {
@@ -271,7 +279,9 @@ export default function App() {
           <form onSubmit={submitSession}>
             <label htmlFor="task-type">What kind of work is this?</label><select id="task-type" value={taskType} onChange={(e) => setTaskType(e.target.value)}>{taskTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
             <label htmlFor="objective">What do you want to achieve?</label><textarea id="objective" value={objective} onChange={(e) => setObjective(e.target.value)} placeholder="Describe the outcome you want—not just the steps you think are needed." rows={3} required />
-            <label htmlFor="context">What should we know? <span>Optional</span></label><textarea id="context" value={context} onChange={(e) => setContext(e.target.value)} placeholder="Paste existing work, context, constraints or known problems." rows={5} />
+            <label htmlFor="requirements">What must a successful result achieve? <span>One requirement per line</span></label><textarea id="requirements" value={requirementsText} onChange={(e) => setRequirementsText(e.target.value)} placeholder={"Preserve the original work\nAddress every critical issue\nProvide evidence for factual claims"} rows={3} />
+            <label htmlFor="constraints">What must it avoid or respect? <span>Optional · One per line</span></label><textarea id="constraints" value={constraintsText} onChange={(e) => setConstraintsText(e.target.value)} placeholder={"Do not change the public API\nKeep within the existing budget"} rows={2} />
+            <label htmlFor="context">Existing work and background <span>Optional</span></label><textarea id="context" value={context} onChange={(e) => setContext(e.target.value)} placeholder="Paste an existing draft, code, research, files or relevant background." rows={5} />
             {notice && <p className="notice" role="alert">{notice}</p>}
             <div className="composer-actions"><button type="button" className="secondary-button" onClick={() => setShowComposer(false)}>Cancel</button><button type="submit" className="primary-button" disabled={busy || !objective.trim()}>{busy ? "Creating…" : "Create and run"} <Icon name="arrow" /></button></div>
           </form>
