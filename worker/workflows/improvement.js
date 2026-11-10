@@ -74,7 +74,7 @@ async function storeArtifact(env, session, content, role, version) {
     customMetadata: { sessionId: session.id, artifactId: id, contentHash, role }
   });
   await env.DB.prepare(
-    "INSERT INTO artifacts (id, session_id, kind, object_key, content_hash, parent_artifact_id, created_by, version, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    "INSERT OR IGNORE INTO artifacts (id, session_id, kind, object_key, content_hash, parent_artifact_id, created_by, version, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
   ).bind(id, session.id, "MARKDOWN", objectKey, contentHash, null, role, version, isoNow()).run();
   return { id, objectKey, contentHash, version, role };
 }
@@ -183,7 +183,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         await recordEvent(this.env.DB, sessionId, "CHALLENGE_SELECTED", plan);
         return { status: "CHALLENGING", strategy: plan.strategy };
       });
-      const challengerContent = await step.do(
+      challengerContent = await step.do(
         "independent-challenge",
         { retries: { limit: 2, delay: "3 seconds", backoff: "exponential" } },
         async () => callModel(this.env, {
