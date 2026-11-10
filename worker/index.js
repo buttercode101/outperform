@@ -88,6 +88,12 @@ async function createWorkSession(request, env, user) {
       requirement.mandatory ? 1 : 0, requirement.verificationMethod, session.createdAt));
   }
 
+  for (const constraint of session.constraints) {
+    statements.push(env.DB.prepare(
+      "INSERT INTO constraints (id, session_id, description, type, created_at) VALUES (?, ?, ?, ?, ?)"
+    ).bind(constraint.id, session.id, constraint.description, constraint.type, session.createdAt));
+  }
+
   try {
     await env.DB.batch(statements);
   } catch (e) {
@@ -210,9 +216,10 @@ async function handleApi(request, env) {
       }
 
       if (action === null && request.method === "GET") {
-        const [artifacts, requirements, events] = await Promise.all([
+        const [artifacts, requirements, constraints, events] = await Promise.all([
           env.DB.prepare("SELECT id, kind, object_key, content_hash, parent_artifact_id, created_by, version, created_at FROM artifacts WHERE session_id = ? ORDER BY version DESC").bind(sessionId).all(),
           env.DB.prepare("SELECT id, description, source, mandatory, verification_method FROM requirements WHERE session_id = ? ORDER BY created_at").bind(sessionId).all(),
+          env.DB.prepare("SELECT id, description, type, created_at FROM constraints WHERE session_id = ? ORDER BY created_at").bind(sessionId).all(),
           env.DB.prepare("SELECT event_type, payload_json, occurred_at FROM session_events WHERE session_id = ? ORDER BY occurred_at").bind(sessionId).all()
         ]);
         return json({
@@ -223,6 +230,7 @@ async function handleApi(request, env) {
           },
           artifacts: artifacts.results ?? [],
           requirements: requirements.results ?? [],
+          constraints: constraints.results ?? [],
           events: (events.results ?? []).map((event) => ({
             ...event, payload: JSON.parse(event.payload_json)
           }))
