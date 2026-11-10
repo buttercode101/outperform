@@ -3,22 +3,19 @@ import { invariant } from "./errors.js";
 
 export const EVIDENCE_STATUSES = Object.freeze(["VERIFIED", "REFUTED", "UNCERTAIN", "UNVERIFIED"]);
 
-export function createEvidence({ sessionId, claim, status = "UNVERIFIED", sourceType, sourceRef = null, observedAt = new Date().toISOString(), details = null }) {
+export function createEvidence({
+  sessionId, claim, status = "UNVERIFIED", sourceType, sourceRef = null,
+  findingId = null, observedAt = new Date().toISOString(), details = null
+}) {
   invariant(typeof sessionId === "string" && sessionId.trim(), "INVALID_EVIDENCE", "sessionId is required.");
   invariant(typeof claim === "string" && claim.trim(), "INVALID_EVIDENCE", "A claim is required.");
   invariant(EVIDENCE_STATUSES.includes(status), "INVALID_EVIDENCE_STATUS", "Unknown evidence status.");
   invariant(typeof sourceType === "string" && sourceType.trim(), "INVALID_EVIDENCE", "sourceType is required.");
-  invariant(status !== "VERIFIED" || sourceRef !== null,
+  invariant(status !== "VERIFIED" || (typeof sourceRef === "string" && sourceRef.trim()),
     "VERIFICATION_REQUIRES_SOURCE", "Verified evidence must reference an observable source.");
   return Object.freeze({
-    id: randomUUID(),
-    sessionId,
-    claim: claim.trim(),
-    status,
-    sourceType: sourceType.trim(),
-    sourceRef,
-    observedAt,
-    details
+    id: randomUUID(), sessionId, findingId, claim: claim.trim(), status,
+    sourceType: sourceType.trim(), sourceRef, observedAt, details
   });
 }
 
