@@ -156,7 +156,12 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
     const contextObject = session.context_object_key
       ? await step.do("load-context", async () => {
           const object = await this.env.ARTIFACTS.get(session.context_object_key);
-          return object ? await object.text() : "";
+          if (!object) {
+            const error = new Error("The supplied source context is missing from artifact storage. Execution stopped to avoid silently ignoring user-provided work.");
+            error.code = "SOURCE_CONTEXT_MISSING";
+            throw error;
+          }
+          return await object.text();
         })
       : "";
 
