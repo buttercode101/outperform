@@ -48,7 +48,7 @@ async function createWorkSession(request, env, user) {
   if (context.length > 100_000) return error("CONTEXT_TOO_LARGE", "Context must be smaller than 100 KB.", 413);
 
   const budget = {
-    maxModelCalls: 3,
+    maxModelCalls: 5,
     maxWallClockSeconds: 600,
     maxToolCalls: 4,
     ...(body.budget && typeof body.budget === "object" ? body.budget : {})
