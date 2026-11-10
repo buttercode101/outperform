@@ -103,7 +103,7 @@ function parseJudgeResponse(content) {
 }
 
 function parseFinalReview(content) {
-  const stripped = content.replace(/^\\s*```(?:json)?\\s*/i, "").replace(/\\s*```\\s*$/, "");
+  const stripped = content.replace(/^\s*```(?:json)?\\s*/i, "").replace(/\s*```\\s*$/, "");
   try {
     const value = JSON.parse(stripped);
     return {
