@@ -66,9 +66,9 @@ async function callModel(env, { system, prompt, temperature = 0.4, maxTokens = 3
 }
 
 async function storeArtifact(env, session, content, role, version) {
-  const id = crypto.randomUUID();
-  const objectKey = `sessions/${session.id}/artifacts/${version}-${role}.md`;
+  const id = `${session.id}-${role.toLowerCase()}-${version}`;
   const contentHash = await sha256(content);
+  const objectKey = `sessions/${session.id}/artifacts/${version}-${role.toLowerCase()}-${contentHash}.md`;
   await env.ARTIFACTS.put(objectKey, content, {
     httpMetadata: { contentType: "text/markdown; charset=utf-8" },
     customMetadata: { sessionId: session.id, artifactId: id, contentHash, role }
@@ -177,6 +177,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
     });
 
     let challengerArtifact = null;
+    let challengerContent = null;
     if (plan.strategy !== "NO_CHALLENGE") {
       await step.do("mark-challenging", async () => {
         await setStatus(this.env.DB, sessionId, "CHALLENGING");
