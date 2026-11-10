@@ -43,3 +43,12 @@ test("terminal sessions cannot transition", () => {
   assert.deepEqual(allowedTransitions(session.status), []);
   assert.throws(() => transitionSession(session, "EXECUTING"), { code: "INVALID_TRANSITION" });
 });
+
+test("allows a reviewed result to become completed after human approval", () => {
+  const created = createSession(input);
+  const understanding = transitionSession(created, "UNDERSTANDING");
+  const awaitingReview = transitionSession(understanding, "AWAITING_APPROVAL");
+  const completed = transitionSession(awaitingReview, "COMPLETED");
+  assert.equal(completed.status, "COMPLETED");
+  assert.equal(isTerminalStatus(completed.status), true);
+});
