@@ -142,6 +142,35 @@ async function handleApi(request, env) {
       return json({ artifact: { id: artifact.id, kind: artifact.kind, version: artifact.version, contentHash: artifact.content_hash }, content: await object.text() });
     }
 
+    const decisionMatch = url.pathname.match(/^\/api\/sessions\/([^/]+)\/decision$/);
+    if (decisionMatch && request.method === "POST") {
+      const sessionId = decodeURIComponent(decisionMatch[1]);
+      let body;
+      try { body = await request.json(); } catch { return error("INVALID_JSON", "Provide an APPROVE or REJECT decision.", 400); }
+      const decision = typeof body.decision === "string" ? body.decision.toUpperCase() : "";
+      if (!["APPROVE", "REJECT"].includes(decision)) {
+        return error("INVALID_DECISION", "Decision must be APPROVE or REJECT.", 400);
+      }
+      const now = new Date().toISOString();
+      const nextStatus = decision === "APPROVE" ? "COMPLETED" : "CANCELLED";
+      const update = await env.DB.prepare(
+        "UPDATE work_sessions SET status = ?, version = version + 1, updated_at = ? WHERE id = ? AND owner_id = ? AND status = 'AWAITING_APPROVAL'"
+      ).bind(nextStatus, now, sessionId, user.id).run();
+      if ((update.meta?.changes ?? 0) !== 1) {
+        return error("DECISION_NOT_ALLOWED", "This session is no longer awaiting a decision.", 409);
+      }
+      await env.DB.batch([
+        env.DB.prepare(
+          "INSERT INTO approvals (id, session_id, action, status, requested_at, decided_at, decided_by) VALUES (?, ?, ?, ?, ?, ?, ?)"
+        ).bind(crypto.randomUUID(), sessionId, decision, decision === "APPROVE" ? "APPROVED" : "REJECTED", now, now, user.id),
+        env.DB.prepare(
+          "INSERT INTO session_events (id, session_id, event_type, payload_json, occurred_at) VALUES (?, ?, ?, ?, ?)"
+        ).bind(crypto.randomUUID(), sessionId, decision === "APPROVE" ? "HUMAN_APPROVED" : "HUMAN_REJECTED",
+          JSON.stringify({ decision, resultingStatus: nextStatus, decidedBy: user.id }), now)
+      ]);
+      return json({ sessionId, decision, status: nextStatus });
+    }
+
     const match = url.pathname.match(/^\/api\/sessions\/([^/]+)(?:\/(start))?$/);
     if (match) {
       const sessionId = decodeURIComponent(match[1]);
