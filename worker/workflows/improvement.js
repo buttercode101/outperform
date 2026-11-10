@@ -138,6 +138,27 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         })
       : "";
 
+    const acceptanceCriteria = await step.do("load-acceptance-criteria", async () => {
+      const [requirements, constraints] = await Promise.all([
+        this.env.DB.prepare("SELECT description, mandatory, verification_method FROM requirements WHERE session_id = ? ORDER BY created_at").bind(sessionId).all(),
+        this.env.DB.prepare("SELECT description, type FROM constraints WHERE session_id = ? ORDER BY created_at").bind(sessionId).all()
+      ]);
+      return {
+        requirements: requirements.results ?? [],
+        constraints: constraints.results ?? []
+      };
+    });
+    const criteriaText = [
+      "USER REQUIREMENTS:",
+      ...(acceptanceCriteria.requirements.length
+        ? acceptanceCriteria.requirements.map((item) => `- [${item.mandatory ? "MUST" : "SHOULD"}] ${item.description}${item.verification_method ? ` (verification: ${item.verification_method})` : ""}`)
+        : ["(No explicit requirements supplied)"]),
+      "CONSTRAINTS AND BOUNDARIES:",
+      ...(acceptanceCriteria.constraints.length
+        ? acceptanceCriteria.constraints.map((item) => `- [${item.type}] ${item.description}`)
+        : ["(No additional constraints supplied)"])
+    ].join("\\n");
+
     await step.do("mark-baseline", async () => {
       await setStatus(this.env.DB, sessionId, "BASELINING");
       await recordEvent(this.env.DB, sessionId, "BASELINE_CAPTURED", { contextPresent: Boolean(contextObject) });
