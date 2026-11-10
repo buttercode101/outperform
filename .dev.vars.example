@@ -1,0 +1,7 @@
+# Copy to .dev.vars and replace values locally. Never commit .dev.vars.
+BETTER_AUTH_SECRET=replace-with-a-random-secret-at-least-32-characters
+BETTER_AUTH_URL=http://localhost:5173
+
+# OpenRouter credentials are required before running improvement workflows.
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=
