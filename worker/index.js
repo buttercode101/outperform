@@ -129,6 +129,19 @@ async function handleApi(request, env) {
       return createWorkSession(request, env, user);
     }
 
+    const artifactMatch = url.pathname.match(/^\\/api\\/sessions\\/([^/]+)\\/artifacts\\/([^/]+)$/);
+    if (artifactMatch && request.method === "GET") {
+      const sessionId = decodeURIComponent(artifactMatch[1]);
+      const artifactId = decodeURIComponent(artifactMatch[2]);
+      const artifact = await env.DB.prepare(
+        "SELECT a.id, a.object_key, a.content_hash, a.kind, a.version FROM artifacts a INNER JOIN work_sessions s ON s.id = a.session_id WHERE a.id = ? AND a.session_id = ? AND s.owner_id = ?"
+      ).bind(artifactId, sessionId, user.id).first();
+      if (!artifact) return error("ARTIFACT_NOT_FOUND", "The requested artifact was not found.", 404);
+      const object = await env.ARTIFACTS.get(artifact.object_key);
+      if (!object) return error("ARTIFACT_CONTENT_MISSING", "The artifact content is unavailable.", 404);
+      return json({ artifact: { id: artifact.id, kind: artifact.kind, version: artifact.version, contentHash: artifact.content_hash }, content: await object.text() });
+    }
+
     const match = url.pathname.match(/^\/api\/sessions\/([^/]+)(?:\/(start))?$/);
     if (match) {
       const sessionId = decodeURIComponent(match[1]);
