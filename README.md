@@ -2,17 +2,75 @@
 
 **AI work improvement, challenge and verification.**
 
-OUTPERFORM helps people improve real work—not just compare models or generate more output. It captures a baseline, defines what good means, challenges weak results, implements accepted improvements and verifies the result.
+OUTPERFORM is designed to improve real work—not merely compare model answers. A user brings an idea, draft, project or existing deliverable. The engine creates a baseline, produces a primary result, independently challenges it, compares candidates and presents a reviewable result with its limitations and evidence trail.
 
 > Make AI work harder. Make the work better. Prove the difference.
 
-## Product status
+## Current implementation
 
-Early engineering foundation. The repository is being built from the consolidated product specification. No production-readiness claim is made.
+The first executable product slice is under active development.
 
-## First vertical slice
+- React workspace with email/password authentication.
+- Owner-scoped work sessions and context storage.
+- Durable Cloudflare Workflow for primary execution, independent challenge and adjudication.
+- Versioned Markdown artifacts stored in R2, with content hashes.
+- D1 event history, requirements, approval and evidence tables.
+- Explicit human approve/reject decisions.
+- Model evaluation is labeled as model-generated; it is not represented as external verification.
+- Failed workflows are recorded as failed rather than left in an active state.
+- Concurrent start requests are guarded by a conditional database claim.
 
-Create session → capture baseline → define acceptance criteria → execute → independently challenge → adjudicate findings → implement an approved improvement → verify → deliver artifact and evidence.
+The application is **not yet deployed as a live production Worker**. Production D1 and R2 resources have been created and the schema has been applied and checked. Deployment still requires the repository's `CLOUDFLARE_API_TOKEN` GitHub Actions secret and a configured OpenRouter API key/model.
+
+## Architecture
+
+- **Client:** React 19 + Vite
+- **Runtime:** Cloudflare Workers
+- **Durable execution:** Cloudflare Workflows
+- **Relational state:** Cloudflare D1
+- **Artifact storage:** Cloudflare R2
+- **Authentication:** Better Auth
+- **Model gateway:** OpenRouter
+
+Production resources are configured in `wrangler.jsonc`; the `dev` environment uses separate D1 and R2 resources.
+
+## Local development
+
+Requirements: Node.js 22 or later and npm.
+
+```bash
+npm install
+cp .dev.vars.example .dev.vars
+npm run dev
+```
+
+Set the following in your local `.dev.vars` file before running model workflows:
+
+- `BETTER_AUTH_SECRET`: a random secret of at least 32 characters.
+- `BETTER_AUTH_URL`: the local application origin.
+- `OPENROUTER_API_KEY`: your OpenRouter API key.
+- `OPENROUTER_MODEL`: a model identifier supported by your OpenRouter account.
+
+Never commit `.dev.vars` or paste production credentials into source files.
+
+## Quality checks
+
+```bash
+npm run check
+npm test
+npm run build
+```
+
+The GitHub Quality workflow runs all three checks and retains the generated Cloudflare build output as a short-lived Actions artifact.
+
+## Production deployment
+
+1. Add `CLOUDFLARE_API_TOKEN` as a GitHub Actions repository secret. It needs permission to deploy Workers and manage the configured bindings/workflow.
+2. Configure production Worker secrets `BETTER_AUTH_SECRET`, `OPENROUTER_API_KEY`, and `OPENROUTER_MODEL`.
+3. Run **Deploy production** from GitHub Actions using workflow dispatch.
+4. Verify the deployed `/api/health` endpoint, account creation, sign-in, session creation, workflow execution, artifact retrieval and approval decisions.
+
+The deployment workflow builds the app and deploys the generated configuration at `dist/worker/wrangler.json`. The regular quality workflow does not deploy production.
 
 ## Engineering principles
 
@@ -23,12 +81,8 @@ Create session → capture baseline → define acceptance criteria → execute �
 - Use task-specific acceptance criteria.
 - Gate consequential actions behind explicit approval.
 - Record actual tests, costs, failures and skipped checks.
-- Never confuse an agent's assertion with verified behaviour.
+- Never confuse an agent's assertion with verified behavior.
 
-## Local development
+## Product and planning
 
-The application scaffold and exact commands will be added as the implementation foundation is established.
-
-## Planning
-
-See `docs/planning/` for the product vision, requirements, architecture, challenge protocol, verification model, market hypotheses and execution roadmap.
+See `docs/planning/` and `docs/engineering/` for the product foundation, requirements, architecture, challenge protocol, verification model, market hypotheses and execution decisions.
