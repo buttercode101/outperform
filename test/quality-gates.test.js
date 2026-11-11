@@ -54,12 +54,12 @@ test("research playbook detects source links but does not claim they were checke
 });
 
 test("business playbook flags quantified claims without an obvious basis", () => {
-  const result = inspectArtifact("# Forecast\n\nRevenue will reach R 500000 in the first quarter and grow 25% in the next quarter. The plan is to scale quickly.", { taskType: "BUSINESS" });
+  const result = inspectArtifact("# Financial output\n\nRevenue will reach R 500000 in the first quarter and grow 25% in the next quarter. The plan is to scale quickly.", { taskType: "BUSINESS" });
   assert.equal(result.checks.find((item) => item.id === "business_claim_basis").status, "FLAG");
 });
 
 test("document playbook flags long unstructured output", () => {
-  const content = "A long document paragraph ".repeat(12);
+  const content = "A long document paragraph ".repeat(30);
   const result = inspectArtifact(content, { taskType: "DOCUMENT" });
   assert.equal(result.checks.find((item) => item.id === "document_structure").status, "FLAG");
 });
