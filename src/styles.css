@@ -230,3 +230,10 @@ button:disabled{cursor:not-allowed;opacity:.45}
 .quality-gate-panel li strong{font-size:10px;color:#3d463a}
 .quality-gate-panel li small{font-size:10px;line-height:1.55;color:#727a6e}
 .quality-gate-panel>p{border-top:1px solid #dce2d7;padding-top:10px;margin:14px 0 0;font-size:9px;line-height:1.6;color:#73796f}
+
+.guest-import-banner{margin:20px 0 0;padding:18px 20px;border:1px solid #d8e0d5;background:#eef2eb;display:flex;justify-content:space-between;align-items:center;gap:20px}
+.guest-import-banner>div:first-child{min-width:0}
+.guest-import-banner strong{display:block;margin-top:6px;font:600 14px Manrope,sans-serif;color:#344b37}
+.guest-import-banner p{font-size:10px;line-height:1.65;color:#6d766a;max-width:650px;margin:6px 0 0}
+.guest-import-banner>div:last-child{display:flex;align-items:center;gap:8px;flex-shrink:0}
+@media(max-width:700px){.guest-import-banner{align-items:flex-start;flex-direction:column}.guest-import-banner>div:last-child{width:100%;flex-wrap:wrap}.guest-import-banner>div:last-child button{flex:1}}
