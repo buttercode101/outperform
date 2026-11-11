@@ -58,64 +58,43 @@ async function createWorkSession(request, env, user) {
     return error(e.code ?? "INVALID_SESSION", e.message, 400);
   }
 
-  const usageDate = new Date().toISOString().slice(0, 10);
-  const now = new Date().toISOString();
-  const dailyLimit = Math.max(1, Math.min(50, Number(env.MAX_DAILY_SESSIONS) || 10));
-  const usageReservation = await env.DB.prepare(
-    "INSERT INTO user_daily_usage (user_id, usage_date, sessions_created, created_at, updated_at) VALUES (?, ?, 1, ?, ?) ON CONFLICT(user_id, usage_date) DO UPDATE SET sessions_created = sessions_created + 1, updated_at = excluded.updated_at WHERE sessions_created < ? RETURNING sessions_created"
-  ).bind(user.id, usageDate, now, now, dailyLimit).first();
-  if (!usageReservation) {
-    return error("DAILY_SESSION_LIMIT_REACHED", "You have reached today's " + dailyLimit + " new-session limit. Your existing work remains available; try again after the UTC day resets.", 429);
-  }
-
   const contextObjectKey = context ? "sessions/" + session.id + "/source/context.txt" : null;
   try {
-  if (contextObjectKey) {
-    await env.ARTIFACTS.put(contextObjectKey, context, {
-      httpMetadata: { contentType: "text/plain; charset=utf-8" },
-      customMetadata: { sessionId: session.id, ownerId: user.id, kind: "source-context" }
-    });
-  }
+    if (contextObjectKey) {
+      await env.ARTIFACTS.put(contextObjectKey, context, {
+        httpMetadata: { contentType: "text/plain; charset=utf-8" },
+        customMetadata: { sessionId: session.id, ownerId: user.id, kind: "source-context" }
+      });
+    }
 
-  const statements = [
-    env.DB.prepare(
-      "INSERT INTO work_sessions (id, owner_id, status, task_type, objective, budget_json, context_object_key, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    ).bind(session.id, user.id, session.status, session.taskType, session.objective,
-      JSON.stringify(session.budget), contextObjectKey, session.version, session.createdAt, session.updatedAt),
-    env.DB.prepare(
-      "INSERT INTO session_events (id, session_id, event_type, payload_json, occurred_at) VALUES (?, ?, ?, ?, ?)"
-    ).bind(crypto.randomUUID(), session.id, "SESSION_CREATED",
-      JSON.stringify({ taskType: session.taskType, requirementsCount: session.requirements.length, contextPresent: Boolean(contextObjectKey) }),
-      session.createdAt)
-  ];
-  for (const requirement of session.requirements) {
-    statements.push(env.DB.prepare(
-      "INSERT INTO requirements (id, session_id, description, source, mandatory, verification_method, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
-    ).bind(requirement.id, session.id, requirement.description, requirement.source,
-      requirement.mandatory ? 1 : 0, requirement.verificationMethod, session.createdAt));
-  }
-
-  for (const constraint of session.constraints) {
-    statements.push(env.DB.prepare(
-      "INSERT INTO session_constraints (id, session_id, description, constraint_type, created_at) VALUES (?, ?, ?, ?, ?)"
-    ).bind(constraint.id, session.id, constraint.description, constraint.type, session.createdAt));
-  }
-
-  for (const constraint of session.constraints) {
-    statements.push(env.DB.prepare(
-      "INSERT INTO constraints (id, session_id, description, type, created_at) VALUES (?, ?, ?, ?, ?)"
-    ).bind(constraint.id, session.id, constraint.description, constraint.type, session.createdAt));
-  }
-
+    const statements = [
+      env.DB.prepare(
+        "INSERT INTO work_sessions (id, owner_id, status, task_type, objective, budget_json, context_object_key, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      ).bind(session.id, user.id, session.status, session.taskType, session.objective,
+        JSON.stringify(session.budget), contextObjectKey, session.version, session.createdAt, session.updatedAt),
+      env.DB.prepare(
+        "INSERT INTO session_events (id, session_id, event_type, payload_json, occurred_at) VALUES (?, ?, ?, ?, ?)"
+      ).bind(crypto.randomUUID(), session.id, "SESSION_CREATED",
+        JSON.stringify({ taskType: session.taskType, requirementsCount: session.requirements.length, contextPresent: Boolean(contextObjectKey) }),
+        session.createdAt)
+    ];
+    for (const requirement of session.requirements) {
+      statements.push(env.DB.prepare(
+        "INSERT INTO requirements (id, session_id, description, source, mandatory, verification_method, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      ).bind(requirement.id, session.id, requirement.description, requirement.source,
+        requirement.mandatory ? 1 : 0, requirement.verificationMethod, session.createdAt));
+    }
+    for (const constraint of session.constraints) {
+      statements.push(env.DB.prepare(
+        "INSERT INTO session_constraints (id, session_id, description, constraint_type, created_at) VALUES (?, ?, ?, ?, ?)"
+      ).bind(constraint.id, session.id, constraint.description, constraint.type, session.createdAt));
+    }
     await env.DB.batch(statements);
   } catch (e) {
     if (contextObjectKey) await env.ARTIFACTS.delete(contextObjectKey);
-    await env.DB.prepare(
-      "UPDATE user_daily_usage SET sessions_created = MAX(0, sessions_created - 1), updated_at = ? WHERE user_id = ? AND usage_date = ?"
-    ).bind(new Date().toISOString(), user.id, usageDate).run();
     throw e;
   }
-  return json({ session: { id: session.id, status: session.status, taskType, objective, createdAt: session.createdAt }, usage: { sessionsCreated: usageReservation.sessions_created, dailyLimit, usageDate } }, 201);
+  return json({ session: { id: session.id, status: session.status, taskType, objective, createdAt: session.createdAt } }, 201);
 }
 
 async function handleApi(request, env) {
