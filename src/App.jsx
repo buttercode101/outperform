@@ -95,6 +95,13 @@ function GuestWorkspace({ onSignIn }) {
   const [requirements, setRequirements] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [notice, setNotice] = useState("");
+  const guestPlaybooks = [
+    { value: "CODE", name: "Engineering hardening", objective: "Improve this software deliverable while preserving existing behaviour, security boundaries and maintainability.", criteria: ["Preserve working functionality","Identify correctness, security, performance and accessibility risks","Propose concrete changes and trade-offs","Define tests that would demonstrate correctness","List what still needs execution or human verification"] },
+    { value: "RESEARCH", name: "Evidence-led research", objective: "Produce a decision-ready research brief with traceable claims, counter-evidence and explicit uncertainty.", criteria: ["Separate facts, estimates, assumptions and opinions","Identify credible primary sources and dates","Test the strongest counterargument","Resolve contradictions between sources","List remaining evidence gaps"] },
+    { value: "DOCUMENT", name: "Document excellence", objective: "Improve this document for its intended audience while preserving its meaning and required details.", criteria: ["Preserve material facts and commitments","Improve structure, clarity and readability","Remove ambiguity and unsupported claims","Check consistency of names, dates and numbers","Explain material changes and unresolved ambiguities"] },
+    { value: "BUSINESS", name: "Business decision stress-test", objective: "Stress-test this business decision and produce a stronger, evidence-aware action plan.", criteria: ["Clarify the decision and assumptions","Identify customer, market, operational and financial risks","Challenge assumptions with counter-scenarios","Compare alternatives and opportunity costs","Define indicators, stop conditions and next actions"] },
+    { value: "CREATIVE", name: "Creative concept challenger", objective: "Develop a distinctive creative direction that fulfils the brief and is meaningfully stronger than conventional alternatives.", criteria: ["Stay faithful to the audience and constraints","Generate meaningfully different directions","Explain the distinctive idea and intended effect","Identify clichés and execution risks","Recommend one direction and next steps"] }
+  ];
 
   useEffect(() => {
     try { localStorage.setItem("outperform_guest_work", JSON.stringify(items)); }
@@ -182,6 +189,8 @@ function GuestWorkspace({ onSignIn }) {
           <div className="section-heading"><div><span className="section-kicker">FREE · NO SIGN-UP</span><h2>Build a work brief</h2></div></div>
           <label htmlFor="guest-type">Type of work</label>
           <select id="guest-type" value={taskType} onChange={e => setTaskType(e.target.value)}>{taskTypes.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
+          <label htmlFor="guest-playbook">Start from a playbook <span>Optional · edit the brief freely</span></label>
+          <select id="guest-playbook" defaultValue="" onChange={(e) => { const template = guestPlaybooks.find((item) => item.value === e.target.value); if (template) { setTaskType(template.value); setObjective(template.objective); setRequirements(template.criteria.join("\n")); setNotice(template.name + " loaded. Edit the objective and criteria before saving."); } e.target.value = ""; }}><option value="">Blank brief</option>{guestPlaybooks.map((item) => <option key={item.value} value={item.value}>{item.name}</option>)}</select>
           <label htmlFor="guest-objective">What are you trying to achieve?</label>
           <textarea id="guest-objective" rows={3} required value={objective} onChange={e => setObjective(e.target.value)} placeholder="Describe the outcome you want to improve…" />
           <label htmlFor="guest-requirements">What does success look like? <span>One per line · optional</span></label>
