@@ -47,7 +47,7 @@ async function createWorkSession(request, env, user) {
     return error("UNSUPPORTED_MEDIA_TYPE", "Send the session brief as application/json.", 415);
   }
   const raw = await request.text();
-  if (raw.length > 120_000) return error("PAYLOAD_TOO_LARGE", "The session brief must be smaller than 120 KB.", 413);
+  if (new TextEncoder().encode(raw).length > 120_000) return error("PAYLOAD_TOO_LARGE", "The session brief must be smaller than 120 KB.", 413);
   let body;
   try { body = JSON.parse(raw); } catch { return error("INVALID_JSON", "The request body is not valid JSON.", 400); }
 
@@ -58,11 +58,15 @@ async function createWorkSession(request, env, user) {
   if (!["CODE", "RESEARCH", "DOCUMENT", "BUSINESS", "CREATIVE", "OTHER"].includes(taskType)) {
     return error("INVALID_TASK_TYPE", "Choose a supported task type.", 400);
   }
-  if (context.length > 100_000) return error("CONTEXT_TOO_LARGE", "Context must be smaller than 100 KB.", 413);
+  if (new TextEncoder().encode(context).length > 100_000) return error("CONTEXT_TOO_LARGE", "Context must be smaller than 100 KB.", 413);
 
   const budget = normalizeSessionBudget(body.budget);
-  const requirements = Array.isArray(body.requirements) ? body.requirements.slice(0, 30) : [];
-  const constraints = Array.isArray(body.constraints) ? body.constraints.slice(0, 30) : [];
+  if (body.requirements !== undefined && (!Array.isArray(body.requirements) || body.requirements.length > 20)) return error("INVALID_REQUIREMENTS", "Provide no more than 20 acceptance criteria.", 400);
+  if (body.constraints !== undefined && (!Array.isArray(body.constraints) || body.constraints.length > 20)) return error("INVALID_CONSTRAINTS", "Provide no more than 20 constraints.", 400);
+  const requirements = Array.isArray(body.requirements) ? body.requirements : [];
+  const constraints = Array.isArray(body.constraints) ? body.constraints : [];
+  if (requirements.some((item) => !item || typeof item.description !== "string" || item.description.trim().length > 500)) return error("INVALID_REQUIREMENTS", "Each acceptance criterion must be text no longer than 500 characters.", 400);
+  if (constraints.some((item) => !item || typeof item.description !== "string" || item.description.trim().length > 500)) return error("INVALID_CONSTRAINTS", "Each constraint must be text no longer than 500 characters.", 400);
   let session;
   try {
     session = createSession({ objective, taskType, budget, requirements, constraints });
