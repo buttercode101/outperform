@@ -584,6 +584,10 @@ export default function App() {
       "## Constraints",
       ...(detail.constraints?.length ? detail.constraints.map((item) => "- " + item.description) : ["- No additional constraints supplied."]), "",
       "## Risk and challenge selection",
+      ...(events.find((event) => event.event_type === "CHALLENGE_PLAN_SELECTED")?.payload
+        ? ["- Challenge strategy: " + events.find((event) => event.event_type === "CHALLENGE_PLAN_SELECTED").payload.strategy,
+           "- Planned model calls: " + events.find((event) => event.event_type === "CHALLENGE_PLAN_SELECTED").payload.estimatedModelCalls]
+        : ["- No challenge plan was recorded."]),
       ...(events.find((event) => event.event_type === "RISK_ASSESSMENT_COMPLETED")?.payload
         ? ["- Heuristic risk: " + events.find((event) => event.event_type === "RISK_ASSESSMENT_COMPLETED").payload.risk,
            "- Uncertainty estimate: " + events.find((event) => event.event_type === "RISK_ASSESSMENT_COMPLETED").payload.uncertainty,
@@ -785,7 +789,8 @@ export default function App() {
             <div className="verification-note"><Icon name="shield" /> AI-selected candidate · Not independently verified</div>
             {(() => {
               const risk = selected.detail.events.find((event) => event.event_type === "RISK_ASSESSMENT_COMPLETED")?.payload;
-              return risk ? <div className="risk-assessment"><div><span className="section-kicker">WORK RISK PROFILE</span><strong>{risk.risk} RISK</strong></div><span>Uncertainty estimate: {risk.uncertainty}</span><small>Heuristic signals: {(risk.signals || []).join(", ") || "No selected high-risk keywords"}. This is a routing aid, not a formal risk assessment.</small></div> : null;
+              const challengePlan = selected.detail.events.find((event) => event.event_type === "CHALLENGE_PLAN_SELECTED")?.payload;
+              return risk ? <div className="risk-assessment"><div><span className="section-kicker">WORK RISK PROFILE</span><strong>{risk.risk} RISK</strong></div><span>Uncertainty estimate: {risk.uncertainty}</span><small>Challenge strategy: {challengePlan?.strategy || "Not recorded"} · Heuristic signals: {(risk.signals || []).join(", ") || "No selected high-risk keywords"}. This is a routing aid, not a formal risk assessment.</small></div> : null;
             })()}
             {(() => {
               const usageEvents = selected.detail.events.filter((event) => event.event_type === "MODEL_USAGE_RECORDED");
