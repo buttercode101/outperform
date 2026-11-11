@@ -60,7 +60,7 @@ export function inspectArtifact(content, { taskType = "OTHER" } = {}) {
       passed: checks.filter((check) => check.status === "PASS").length,
       flagged: flags,
       failed: failures,
-      outcome: failures ? "BLOCKED" : flags ? "REVIEW_REQUIRED" : "MECHANICAL_CHECKS_PASSED"
+      outcome: failures ? "FAILED_CHECKS" : flags ? "REVIEW_REQUIRED" : "MECHANICAL_CHECKS_PASSED"
     },
     limitations: [
       "These checks inspect text structure only.",
