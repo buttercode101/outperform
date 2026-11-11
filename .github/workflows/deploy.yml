@@ -105,3 +105,27 @@ jobs:
           done
           echo "OUTPERFORM did not reach a fully configured healthy state."
           exit 1
+
+      - name: Smoke test guest entry and authenticated API boundaries
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const base = "https://outperform.buttercoder-dev.workers.dev";
+          const htmlResponse = await fetch(base + "/");
+          if (!htmlResponse.ok) throw new Error("Guest entry returned HTTP " + htmlResponse.status);
+          const html = await htmlResponse.text();
+          if (!html.includes('id="root"')) throw new Error("Guest entry HTML has no React root.");
+          const scripts = [...html.matchAll(/<script[^>]+src=["']([^"']+)["']/g)].map((match) => match[1]);
+          if (!scripts.length) throw new Error("No application script was found in the guest entry HTML.");
+          const bundleResponse = await fetch(new URL(scripts[0], base));
+          if (!bundleResponse.ok) throw new Error("Guest application bundle returned HTTP " + bundleResponse.status);
+          const bundle = await bundleResponse.text();
+          for (const marker of ["No account required", "outperform_guest_work", "Continue without an account"]) {
+            if (!bundle.includes(marker)) throw new Error("Guest experience marker missing from production bundle: " + marker);
+          }
+          for (const path of ["/api/sessions", "/api/usage"]) {
+            const response = await fetch(base + path);
+            if (response.status !== 401) throw new Error(path + " must require authentication; got HTTP " + response.status);
+          }
+          console.log("Guest entry is public, guest workspace is in the production bundle, and private APIs reject anonymous access.");
+          NODE
