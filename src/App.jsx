@@ -546,6 +546,18 @@ export default function App() {
           <article className="principle"><div className="principle-icon"><Icon name="shield" /></div><div><h3>Inspect the proof</h3><p>Keep the original. Compare every version. See what passed, what failed and what still needs a real-world check.</p></div></article>
         </section>
 
+        <section className="method-section">
+          <div className="method-heading"><div><span className="section-kicker">THE OUTPERFORM LOOP</span><h2>One deliverable. Six stages of scrutiny.</h2></div><p>Not a chat thread. A controlled improvement process with a record you can inspect.</p></div>
+          <div className="method-flow">
+            <article><span>01</span><strong>Capture</strong><small>Freeze the original, objective and acceptance criteria.</small></article>
+            <article><span>02</span><strong>Compete</strong><small>Generate alternatives with different model families.</small></article>
+            <article><span>03</span><strong>Challenge</strong><small>Compare strengths, gaps, risks and constraints.</small></article>
+            <article><span>04</span><strong>Improve</strong><small>Produce a stronger final candidate from the review.</small></article>
+            <article><span>05</span><strong>Check</strong><small>Run mechanical checks and record what remains unverified.</small></article>
+            <article><span>06</span><strong>Decide</strong><small>You approve, reject or request another pass.</small></article>
+          </div>
+        </section>
+
         <section className="metrics-strip" aria-label="Workspace metrics">
           <article><span>ALL SESSIONS</span><strong>{sessions.length}</strong><small>Work attempted</small></article>
           <article><span>IN PROGRESS</span><strong>{activeCount}</strong><small>Currently running</small></article>
