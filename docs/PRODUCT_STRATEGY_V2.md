@@ -13,16 +13,16 @@ The promise is not "AI says this is better." The promise is a traceable record o
 ## 2. Competitive landscape reviewed — November 2026
 
 ### Cursor
-Cursor provides deep codebase context, multi-file editing, terminal execution, background agents, browser testing, checkpoints and code review. It is an execution environment for software development. OUTPERFORM should not attempt to reproduce a full IDE or coding-agent VM as its first wedge.
+Cursor provides deep codebase context, multi-file editing, terminal execution, cloud/background agents, browser testing, checkpoints and code review. It is an execution environment for software development. OUTPERFORM should not attempt to reproduce a full IDE or coding-agent VM as its first wedge. Sources: [Cursor Agent](https://prod.cursor.com/help/ai-features/agent), [Cloud Agents](https://prod.cursor.com/help/ai-features/background-agents), [Browser](https://cursor.com/docs/agent/tools/browser).
 
 ### Devin
-Devin offers cloud and desktop execution, browser/desktop testing, self-review, autofix, PR workflows and enterprise controls. This establishes that autonomous execution plus self-testing is already a competitive baseline for software agents.
+Devin offers planning and execution for complex engineering work, PR review and visual QA, browser/desktop use, code migrations, scheduled chores and feedback-driven maintenance. This establishes that autonomous execution plus self-testing is already a competitive baseline for software agents. Source: [Devin product](https://devin.ai/).
 
 ### CodeRabbit
-CodeRabbit focuses on contextual code review, fixes, learnings, custom pre-merge checks, security review and integrations. It demonstrates the value of actionable review close to the code-change workflow.
+CodeRabbit now goes beyond comments: contextual review, agent loops, sandbox-tested findings, Autofix, custom pre-merge checks, triage and continuous security monitoring. It demonstrates the value of actionable review close to the code-change workflow. OUTPERFORM cannot differentiate on 'AI reviews and suggests fixes' alone. Sources: [CodeRabbit product](https://www.coderabbit.ai/), [Autofix](https://www.coderabbit.ai/blog/you-don-t-need-to-implement-that-autofix-will), [Pricing and checks](https://www.coderabbit.ai/pricing).
 
 ### Langfuse and Braintrust
-These platforms provide tracing, datasets, scoring, experiments and production evaluation loops. They are strong infrastructure for AI teams, but they do not position themselves as the end-user work product that takes arbitrary work, improves it, produces a candidate, and hands a person a decision-ready evidence dossier.
+These platforms provide tracing, datasets, scoring, experiments, human annotation, prompt/version tracking, cost/latency analytics and production evaluation loops. Braintrust also supports CI release gates; Langfuse supports dataset experiments and trace-linked metrics. They are strong evaluation infrastructure. OUTPERFORM should integrate with this ecosystem rather than pretend these capabilities are novel. Its opportunity is the end-user work product that takes arbitrary work, improves it, produces a candidate, and hands a person a decision-ready evidence dossier. Sources: [Langfuse dataset evaluation](https://langfuse.com/docs/evaluation/get-started/offline), [Langfuse tracing](https://langfuse.com/academy/tracing), [Braintrust evals](https://www.braintrust.dev/articles/how-to-eval).
 
 ## 3. What OUTPERFORM must own
 
@@ -114,6 +114,6 @@ OUTPERFORM is not production-ready until all of the following are demonstrated a
 11. Monitoring, alerting, backups/restore, retention and incident recovery are documented and tested.
 12. No user-facing claim exceeds the evidence actually collected.
 
-## 9. Research caveat
+## 9. Research sources and caveat
 
-Public agent benchmarks are not a substitute for a product-specific evaluation. OpenAI's February 2026 analysis found substantial test-design and contamination problems in SWE-bench Verified; its July 2026 analysis also found material task issues in SWE-bench Pro. OUTPERFORM should therefore build task-specific evaluation sets with versioned instructions, deterministic checks and human-reviewed ground truth rather than use a single public leaderboard as a quality claim.
+Public agent benchmarks are not a substitute for a product-specific evaluation. OpenAI's February 2026 audit found that at least 59.4% of an audited subset of SWE-bench Verified problems had materially flawed tests or descriptions. Its July 2026 audit estimated around 30% of SWE-bench Pro tasks were broken. Scale AI subsequently released SWE-Bench Pro V2 with 89 invalid tasks removed and a two-sided gate. This is evidence that benchmark quality itself must be audited. Sources: [OpenAI — SWE-bench Verified audit](https://openai.com/index/why-we-no-longer-evaluate-swe-bench-verified/), [OpenAI — SWE-Bench Pro audit](https://openai.com/index/separating-signal-from-noise-coding-evaluations/), [SWE-Bench Pro V2](https://labs.scale.com/leaderboard/swe_bench_pro_public_v2?tab=full). OUTPERFORM should therefore build task-specific evaluation sets with versioned instructions, deterministic checks and human-reviewed ground truth rather than use a single public leaderboard as a quality claim.
