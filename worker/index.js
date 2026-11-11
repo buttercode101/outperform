@@ -153,6 +153,15 @@ async function handleApi(request, env) {
     const user = await getUser(auth, request);
     if (!user) return error("UNAUTHENTICATED", "Sign in to access your workspace.", 401);
 
+    if (url.pathname === "/api/usage" && request.method === "GET") {
+      const usageDate = new Date().toISOString().slice(0, 10);
+      const dailyLimit = Math.max(1, Math.min(50, Number(env.MAX_DAILY_SESSIONS) || 10));
+      const usage = await env.DB.prepare(
+        "SELECT sessions_created FROM user_daily_usage WHERE user_id = ? AND usage_date = ?"
+      ).bind(user.id, usageDate).first();
+      return json({ usageDate, sessionsCreated: usage?.sessions_created ?? 0, dailyLimit, remaining: Math.max(0, dailyLimit - (usage?.sessions_created ?? 0)), resetTimezone: "UTC" });
+    }
+
     if (url.pathname === "/api/sessions" && request.method === "GET") {
       return json({ sessions: await listSessions(env, user.id) });
     }
