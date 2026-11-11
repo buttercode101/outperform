@@ -50,6 +50,7 @@ async function createWorkSession(request, env, user) {
   if (new TextEncoder().encode(raw).length > 120_000) return error("PAYLOAD_TOO_LARGE", "The session brief must be smaller than 120 KB.", 413);
   let body;
   try { body = JSON.parse(raw); } catch { return error("INVALID_JSON", "The request body is not valid JSON.", 400); }
+  if (!body || typeof body !== "object" || Array.isArray(body)) return error("INVALID_SESSION", "Provide a session brief object.", 400);
 
   const objective = typeof body.objective === "string" ? body.objective.trim() : "";
   const taskType = typeof body.taskType === "string" ? body.taskType.trim().toUpperCase() : "";
