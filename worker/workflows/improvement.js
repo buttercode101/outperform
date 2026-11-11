@@ -91,7 +91,7 @@ async function callModel(env, { sessionId, stage, model = env.OPENROUTER_MODEL, 
   return content.trim();
 }
 
-async function storeArtifact(env, session, content, role, version) {
+async function storeArtifact(env, session, content, role, version, parentArtifactId = null) {
   const id = `${session.id}-${role.toLowerCase()}-${version}`;
   const contentHash = await sha256(content);
   const objectKey = `sessions/${session.id}/artifacts/${version}-${role.toLowerCase()}-${contentHash}.md`;
@@ -101,7 +101,7 @@ async function storeArtifact(env, session, content, role, version) {
   });
   await env.DB.prepare(
     "INSERT OR IGNORE INTO artifacts (id, session_id, kind, object_key, content_hash, parent_artifact_id, created_by, version, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-  ).bind(id, session.id, "MARKDOWN", objectKey, contentHash, null, role, version, isoNow()).run();
+  ).bind(id, session.id, "MARKDOWN", objectKey, contentHash, parentArtifactId, role, version, isoNow()).run();
   return { id, objectKey, contentHash, version, role };
 }
 
@@ -212,10 +212,32 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         : ["(No additional constraints supplied)"])
     ].join("\n");
 
+    const baselineContent = [
+      "# Original work brief",
+      "",
+      "## Task type",
+      session.task_type,
+      "",
+      "## Objective",
+      session.objective,
+      "",
+      "## Supplied context",
+      contextObject || "(No additional context supplied)",
+      "",
+      criteriaText
+    ].join("\n");
+    const baselineArtifact = await step.do("store-baseline-artifact", async () =>
+      storeArtifact(this.env, session, baselineContent, "BASELINE", 0)
+    );
+
     await step.do("mark-baseline", async () => {
       await setStatus(this.env.DB, sessionId, "BASELINING");
-      await recordEvent(this.env.DB, sessionId, "BASELINE_CAPTURED", { contextPresent: Boolean(contextObject) });
-      return { status: "BASELINING" };
+      await recordEvent(this.env.DB, sessionId, "BASELINE_CAPTURED", {
+        contextPresent: Boolean(contextObject),
+        artifactId: baselineArtifact.id,
+        contentHash: baselineArtifact.contentHash
+      });
+      return { status: "BASELINING", artifactId: baselineArtifact.id };
     });
 
     await step.do("mark-executing", async () => {
@@ -235,7 +257,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       })
     );
     const primaryArtifact = await step.do("store-primary-artifact", async () =>
-      storeArtifact(this.env, session, primaryContent, "PRIMARY", 1)
+      storeArtifact(this.env, session, primaryContent, "PRIMARY", 1, baselineArtifact.id)
     );
     await step.do("record-primary", async () => {
       await recordEvent(this.env.DB, sessionId, "PRIMARY_EXECUTION_COMPLETED", {
@@ -272,7 +294,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         })
       );
       challengerArtifact = await step.do("store-challenger-artifact", async () =>
-        storeArtifact(this.env, session, challengerContent, "CHALLENGER", 2)
+        storeArtifact(this.env, session, challengerContent, "CHALLENGER", 2, baselineArtifact.id)
       );
       await step.do("record-challenger", async () => {
         await recordEvent(this.env.DB, sessionId, "CHALLENGE_COMPLETED", {
@@ -321,7 +343,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         maxTokens: 4500
       }));
       finalArtifact = await step.do("store-final-artifact", async () =>
-        storeArtifact(this.env, session, finalContent, "FINAL", 3)
+        storeArtifact(this.env, session, finalContent, "FINAL", 3, selectedArtifact.id)
       );
       await step.do("record-final-improvement", async () => {
         await recordEvent(this.env.DB, sessionId, "FINAL_IMPROVEMENT_COMPLETED", {
