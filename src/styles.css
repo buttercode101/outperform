@@ -291,3 +291,6 @@ button:disabled{cursor:not-allowed;opacity:.45}
 .delete-account-button:hover{text-decoration:underline}
 .delete-account-button:disabled{opacity:.5;cursor:wait}
 @media(max-width:520px){.topbar-right{flex-wrap:wrap}.delete-account-button{font-size:9px}}
+
+.composer-actions{flex-wrap:wrap}
+@media(max-width:560px){.composer-actions button{flex:1 1 auto;min-width:110px}.composer-actions .primary-button{flex:1 1 100%}}
