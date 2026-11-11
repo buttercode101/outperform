@@ -54,7 +54,8 @@ export function inspectArtifact(content, { taskType = "OTHER" } = {}) {
     });
   } else if (taskType === "BUSINESS") {
     const quantified = /(?:[$€£]\s?\d|\bR\s?\d|\b\d+(?:\.\d+)?%)/.test(text);
-    const hasBasis = /\b(?:assumptions?|estimates?|risks?|uncertaint(?:y|ies)|source|basis|forecast)\b/i.test(text);
+    const businessBody = text.replace(/^#{1,6}\s+.*$/gm, "");
+    const hasBasis = /\b(?:assumptions?|estimates?|risks?|uncertaint(?:y|ies)|source|basis|forecast)\b/i.test(businessBody);
     taskSpecificChecks.push({
       id: "business_claim_basis",
       label: "Quantified business-claim basis",
