@@ -301,8 +301,11 @@ export default function App() {
       setSavedPlaybooks((current) => [data.playbook, ...current]);
       setPlaybookNotice("Saved to your private playbook library.");
       setNotice("Saved to your private playbook library.");
+      return true;
     } catch (e) {
       setPlaybookNotice(e.message);
+      setNotice(e.message);
+      return false;
     }
   }
 
@@ -314,7 +317,7 @@ export default function App() {
     const suggestedName = taskType.toLowerCase().replaceAll("_", " ") + " playbook";
     const name = window.prompt("Name this reusable playbook:", suggestedName);
     if (!name?.trim()) return;
-    await savePlaybook({
+    const saved = await savePlaybook({
       name: name.trim(),
       type: taskType,
       desc: "Custom playbook saved from a work brief.",
@@ -322,7 +325,7 @@ export default function App() {
       criteria: requirementsText.split("\n").map((item) => item.trim()).filter(Boolean),
       constraints: constraintsText.split("\n").map((item) => item.trim()).filter(Boolean)
     });
-    setNotice("Your custom playbook has been saved to your private library.");
+    if (saved) setNotice("Your custom playbook has been saved to your private library.");
   }
 
   function usePlaybook(playbook) {
