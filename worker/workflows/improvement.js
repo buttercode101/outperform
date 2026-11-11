@@ -252,7 +252,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
 
     await step.do("mark-baseline", async () => {
       await this.env.DB.prepare(
-        "UPDATE work_sessions SET status = 'BASELINING', baseline_artifact_id = ?, updated_at = ? WHERE id = ?"
+        "UPDATE work_sessions SET status = 'BASELINING', baseline_artifact_id = ?, version = version + 1, updated_at = ? WHERE id = ?"
       ).bind(baselineArtifact.id, isoNow(), sessionId).run();
       await recordEvent(this.env.DB, sessionId, "BASELINE_CAPTURED", {
         contextPresent: Boolean(contextObject),
