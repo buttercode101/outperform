@@ -357,6 +357,9 @@ export default function App() {
       ...(detail.constraints?.length ? detail.constraints.map((item) => "- " + item.description) : ["- No additional constraints supplied."]), "",
       "## Candidate artifacts",
       ...(artifacts.length ? artifacts.map((item) => "- **" + item.created_by + " · v" + item.version + "** — " + item.id + "\n  - SHA-256: " + item.content_hash) : ["- No artifacts were recorded."]), "",
+      "## Deterministic artifact checks",
+      ...(events.find((event) => event.event_type === "DETERMINISTIC_QUALITY_GATE_COMPLETED")?.payload?.checks || []).map((check) => "- " + check.status + " — " + check.label + ": " + check.detail),
+      "",
       "## Comparative assessment",
       evaluation ? evaluation.rationale : "No comparative assessment was recorded.",
       ...(evaluation?.strengths?.length ? ["", "### Strengths", ...evaluation.strengths.map((item) => "- " + item)] : []),
@@ -518,6 +521,15 @@ export default function App() {
           {detailLoading ? <p>Loading session evidence…</p> : selected.detail && <>
             <div className="review-meta"><Status value={selected.detail.session.status} /><span>{selected.detail.artifacts.length} candidate artifacts</span></div>
             <div className="verification-note"><Icon name="shield" /> AI-selected candidate · Not independently verified</div>
+            {(() => {
+              const gate = selected.detail.events.find((event) => event.event_type === "DETERMINISTIC_QUALITY_GATE_COMPLETED")?.payload;
+              return gate ? <section className="quality-gate-panel">
+                <div className="quality-gate-heading"><div><span className="section-kicker">DETERMINISTIC CHECKS</span><h3>Artifact quality gate</h3></div><strong>{gate.summary?.outcome === "MECHANICAL_CHECKS_PASSED" ? "Checks passed" : gate.summary?.outcome === "BLOCKED" ? "Blocked" : "Review required"}</strong></div>
+                <div className="quality-gate-stats"><span>{gate.summary?.passed || 0} passed</span><span>{gate.summary?.flagged || 0} flagged</span><span>{gate.summary?.failed || 0} failed</span><span>{gate.wordCount || 0} words</span></div>
+                <ul>{(gate.checks || []).map((check) => <li key={check.id}><span className={"gate-status gate-" + check.status.toLowerCase()}>{check.status}</span><div><strong>{check.label}</strong><small>{check.detail}</small></div></li>)}</ul>
+                <p>These checks inspect text structure only. They do not prove factual accuracy, requirement satisfaction, code correctness or real-world usefulness.</p>
+              </section> : null;
+            })()}
             {(() => {
               const evaluation = selected.detail.events.find((event) => event.event_type === "RESULT_READY_FOR_REVIEW")?.payload?.comparativeEvaluation || selected.detail.events.find((event) => event.event_type === "RESULT_READY_FOR_REVIEW")?.payload?.evaluation;
               return evaluation ? <section className="evaluation-summary">
