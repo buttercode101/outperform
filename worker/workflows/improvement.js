@@ -1,5 +1,6 @@
 import { WorkflowEntrypoint } from "cloudflare:workers";
 import { planChallenge } from "../../src/domain/challenge.js";
+import { inspectArtifact } from "../../src/domain/quality-gates.js";
 
 const isoNow = () => new Date().toISOString();
 
@@ -302,6 +303,27 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       });
     }
 
+    const qualityGate = await step.do("deterministic-artifact-quality-gate", async () => {
+      const result = inspectArtifact(finalContent, { taskType: session.task_type });
+      const sourceRef = "artifact:" + finalArtifact.id + "#sha256:" + finalArtifact.contentHash;
+      const now = isoNow();
+      const evidence = result.checks.map((check) => this.env.DB.prepare(
+        "INSERT INTO evidence_records (id, session_id, claim, status, source_type, source_ref, details_json, observed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+      ).bind(
+        crypto.randomUUID(),
+        sessionId,
+        check.label + ": " + check.detail,
+        check.status === "PASS" ? "VERIFIED" : check.status === "FAIL" ? "REFUTED" : "UNVERIFIED",
+        "DETERMINISTIC_ARTIFACT_CHECK",
+        sourceRef,
+        JSON.stringify({ checkId: check.id, result: check.status, wordCount: result.wordCount, taskType: result.taskType }),
+        now
+      ));
+      if (evidence.length) await this.env.DB.batch(evidence);
+      await recordEvent(this.env.DB, sessionId, "DETERMINISTIC_QUALITY_GATE_COMPLETED", result);
+      return result;
+    });
+
     if (budget.maxModelCalls >= 5) {
       await step.do("mark-verifying", async () => {
         await setStatus(this.env.DB, sessionId, "VERIFYING");
@@ -344,6 +366,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         challengerArtifactId: challengerArtifact?.id ?? null,
         comparativeEvaluation: evaluation,
         finalReview,
+        qualityGate,
         verificationStatus: "UNVERIFIED"
       });
       return { status: "AWAITING_APPROVAL", selectedArtifactId: finalArtifact.id };
@@ -355,6 +378,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       primaryArtifactId: primaryArtifact.id,
       challengerArtifactId: challengerArtifact?.id ?? null,
       finalReview,
+      qualityGate,
       verificationStatus: "UNVERIFIED"
     };
     } catch (error) {
