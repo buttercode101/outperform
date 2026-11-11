@@ -308,7 +308,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
           sessionId, stage: "CHALLENGER",
           model: this.env.OPENROUTER_CHALLENGER_MODEL || this.env.OPENROUTER_MODEL,
           system: "You are an independent rival solution engine. You have not seen the primary answer. Do not imitate it. Solve the user's task independently and aim to outperform a strong competing system. Do not claim verification you did not perform.",
-          prompt: `TASK TYPE: ${session.task_type}\nOBJECTIVE: ${session.objective}\nCONTEXT AND EXISTING WORK:\n${contextObject || "(No additional context supplied)"}\n\n${criteriaText}\n\nProduce a complete independent alternative. Surface assumptions and uncertainty.`,
+          prompt: `TASK TYPE: ${session.task_type}\nTASK-SPECIFIC METHOD: ${taskMethod}\nOBJECTIVE: ${session.objective}\nCONTEXT AND EXISTING WORK:\n${contextObject || "(No additional context supplied)"}\n\n${criteriaText}\n\nProduce a complete independent alternative. Surface assumptions and uncertainty.`,
           temperature: 0.65
         })
       );
