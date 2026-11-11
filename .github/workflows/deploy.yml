@@ -124,8 +124,8 @@ jobs:
           for (const marker of ["No account required", "outperform_guest_work", "Continue without an account"]) {
             if (!bundle.includes(marker)) throw new Error("Guest experience marker missing from production bundle: " + marker);
           }
-          for (const path of ["/api/sessions", "/api/usage", "/api/playbooks"]) {
-            const response = await fetch(base + path);
+          for (const path of ["/api/sessions", "/api/usage", "/api/playbooks", "/api/account"]) {
+            const response = await fetch(base + path, { method: path === "/api/account" ? "DELETE" : "GET" });
             if (response.status !== 401) throw new Error(path + " must require authentication; got HTTP " + response.status);
           }
           console.log("Guest entry is public, guest workspace is in the production bundle, and private APIs reject anonymous access.");
