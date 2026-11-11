@@ -92,6 +92,7 @@ function GuestWorkspace({ onSignIn }) {
   const [taskType, setTaskType] = useState("CODE");
   const [context, setContext] = useState("");
   const [requirements, setRequirements] = useState("");
+  const [editingId, setEditingId] = useState(null);
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
@@ -102,15 +103,49 @@ function GuestWorkspace({ onSignIn }) {
   function createBrief(event) {
     event.preventDefault();
     if (!objective.trim()) return;
-    const item = {
-      id: crypto.randomUUID(), taskType, objective: objective.trim(),
-      context: context.trim(),
-      requirements: requirements.split("\n").map(x => x.trim()).filter(Boolean),
-      createdAt: new Date().toISOString()
-    };
-    setItems(current => [item, ...current]);
-    setObjective(""); setContext(""); setRequirements("");
-    setNotice("Your work brief is saved in this browser. Nothing has been uploaded.");
+    if (editingId) {
+      const updated = {
+        id: editingId, taskType, objective: objective.trim(),
+        context: context.trim(),
+        requirements: requirements.split("\n").map(x => x.trim()).filter(Boolean),
+        createdAt: items.find((item) => item.id === editingId)?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      setItems(current => current.map(item => item.id === editingId ? updated : item));
+      setNotice("Your brief has been updated and saved on this device.");
+    } else {
+      const item = {
+        id: crypto.randomUUID(), taskType, objective: objective.trim(),
+        context: context.trim(),
+        requirements: requirements.split("\n").map(x => x.trim()).filter(Boolean),
+        createdAt: new Date().toISOString()
+      };
+      setItems(current => [item, ...current]);
+      setNotice("Your work brief is saved in this browser. Nothing has been uploaded.");
+    }
+    setEditingId(null); setObjective(""); setContext(""); setRequirements("");
+  }
+
+  function editBrief(item) {
+    setEditingId(item.id);
+    setTaskType(item.taskType || "OTHER");
+    setObjective(item.objective || "");
+    setContext(item.context || "");
+    setRequirements((item.requirements || []).join("\n"));
+    setNotice("Editing a local brief. Save changes when ready.");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function deleteBrief(id) {
+    if (!window.confirm("Delete this local brief? This cannot be undone.")) return;
+    setItems(current => current.filter((item) => item.id !== id));
+    if (editingId === id) { setEditingId(null); setObjective(""); setContext(""); setRequirements(""); }
+    setNotice("The local brief was deleted from this browser.");
+  }
+
+  function cancelEdit() {
+    setEditingId(null); setObjective(""); setContext(""); setRequirements("");
+    setNotice("Changes discarded.");
   }
 
   function exportBrief(item) {
@@ -153,13 +188,13 @@ function GuestWorkspace({ onSignIn }) {
           <label htmlFor="guest-context">Existing work or context <span>Optional</span></label>
           <textarea id="guest-context" rows={4} value={context} onChange={e => setContext(e.target.value)} placeholder="Paste notes, a draft, requirements or background…" />
           {notice && <p className="notice" role="status">{notice}</p>}
-          <button className="primary-button" type="submit" disabled={!objective.trim()}><Icon name="plus" /> Save work brief <Icon name="arrow" /></button>
+          <div className="guest-form-actions">{editingId && <button className="secondary-button" type="button" onClick={cancelEdit}>Cancel edit</button>}<button className="primary-button" type="submit" disabled={!objective.trim()}><Icon name="plus" /> {editingId ? "Save changes" : "Save work brief"} <Icon name="arrow" /></button></div>
           <p className="composer-note">Your brief stays in this browser. It is not sent to OUTPERFORM servers.</p>
         </form>
         <section className="guest-library">
           <div className="section-heading"><div><span className="section-kicker">YOUR DEVICE</span><h2>Saved briefs</h2></div><span className="empty-count">{items.length}</span></div>
           {items.length === 0 ? <div className="empty-state"><div className="empty-symbol"><Mark /></div><h3>Your work, your starting point.</h3><p>Create a brief. It will be saved locally on this device, without registration.</p></div> :
-            <div className="session-list">{items.map(item => <article className="session-row" key={item.id}><div className="session-main"><span className="session-type">{item.taskType}</span><h3>{item.objective}</h3><span className="session-date">{new Date(item.createdAt).toLocaleString()}</span></div><div className="session-actions"><button className="small-action" onClick={() => exportBrief(item)}>Export <Icon name="arrow" /></button></div></article>)}</div>}
+            <div className="session-list">{items.map(item => <article className="session-row" key={item.id}><div className="session-main"><span className="session-type">{item.taskType}</span><h3>{item.objective}</h3><span className="session-date">{new Date(item.createdAt).toLocaleString()}</span></div><div className="session-actions"><button className="small-action" onClick={() => editBrief(item)}>Edit</button><button className="small-action" onClick={() => exportBrief(item)}>Export <Icon name="arrow" /></button><button className="small-action danger-action" onClick={() => deleteBrief(item.id)}>Delete</button></div></article>)}</div>}
         </section>
       </section>
       <section className="guest-upgrade">
