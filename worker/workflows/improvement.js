@@ -99,9 +99,14 @@ async function storeArtifact(env, session, content, role, version, parentArtifac
     httpMetadata: { contentType: "text/markdown; charset=utf-8" },
     customMetadata: { sessionId: session.id, artifactId: id, contentHash, role }
   });
-  await env.DB.prepare(
-    "INSERT OR IGNORE INTO artifacts (id, session_id, kind, object_key, content_hash, parent_artifact_id, created_by, version, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-  ).bind(id, session.id, "MARKDOWN", objectKey, contentHash, parentArtifactId, role, version, isoNow()).run();
+  try {
+    await env.DB.prepare(
+      "INSERT OR IGNORE INTO artifacts (id, session_id, kind, object_key, content_hash, parent_artifact_id, created_by, version, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    ).bind(id, session.id, "MARKDOWN", objectKey, contentHash, parentArtifactId, role, version, isoNow()).run();
+  } catch (error) {
+    await env.ARTIFACTS.delete(objectKey);
+    throw error;
+  }
   return { id, objectKey, contentHash, version, role };
 }
 
