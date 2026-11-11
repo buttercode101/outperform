@@ -285,10 +285,28 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       return { artifactId: primaryArtifact.id };
     });
 
+    const riskText = [session.objective, contextObject, criteriaText].join("\n");
+    const riskSignals = [
+      ["SECURITY_OR_AUTH", /\b(?:security|authentication|authorization|credential|secret|permission)\b/i],
+      ["PAYMENT_OR_FINANCE", /\b(?:payment|billing|invoice|financial|revenue|bank|transaction)\b/i],
+      ["PRODUCTION_OR_MIGRATION", /\b(?:production|deployment|migration|database|rollback|release)\b/i],
+      ["PRIVACY_OR_COMPLIANCE", /\b(?:privacy|personal data|compliance|regulation|legal|retention)\b/i]
+    ].filter(([, pattern]) => pattern.test(riskText)).map(([signal]) => signal);
+    const inferredRisk = riskSignals.length >= 2 ? "CRITICAL" : riskSignals.length === 1 ? "HIGH" : ["CODE","BUSINESS","RESEARCH"].includes(session.task_type) ? "MEDIUM" : "LOW";
+    const inferredUncertainty = Math.max(0.3, Math.min(0.95,
+      0.4 + acceptanceCriteria.requirements.length * 0.025 +
+      (contextObject.length < 300 ? 0.15 : 0) +
+      (contextObject.length === 0 ? 0.1 : 0)
+    ));
+    await step.do("record-risk-assessment", async () => {
+      const assessment = { method: "KEYWORD_HEURISTIC", risk: inferredRisk, uncertainty: Number(inferredUncertainty.toFixed(2)), signals: riskSignals };
+      await recordEvent(this.env.DB, sessionId, "RISK_ASSESSMENT_COMPLETED", assessment);
+      return assessment;
+    });
     const plan = planChallenge({
       taskType: session.task_type,
-      risk: "MEDIUM",
-      uncertainty: 0.65,
+      risk: inferredRisk,
+      uncertainty: inferredUncertainty,
       remainingModelCalls: Math.max(0, JSON.parse(session.budget_json).maxModelCalls - 1),
       remainingToolCalls: JSON.parse(session.budget_json).maxToolCalls ?? 0
     });
