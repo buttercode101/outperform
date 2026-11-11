@@ -26,6 +26,19 @@ async function setStatus(db, sessionId, status, bestArtifactId = undefined) {
   }
 }
 
+
+function taskGuidance(taskType) {
+  const guidance = {
+    CODE: "SOFTWARE: Preserve existing interfaces and behaviour unless the brief authorizes changes. Explain implementation trade-offs, security and performance risks, migration concerns, and concrete tests. Never claim code was executed or tests passed unless an execution tool supplied evidence.",
+    RESEARCH: "RESEARCH: Do not invent sources, URLs, dates, quotations or statistics. Separate sourced facts, inference, estimates and assumptions. Include source links only when known from supplied context; explicitly flag claims that still need browsing or source validation.",
+    DOCUMENT: "DOCUMENT: Preserve material meaning, names, dates, numbers, obligations and tone constraints. Improve hierarchy and clarity without inventing facts or commitments. List unresolved ambiguity instead of silently deciding.",
+    BUSINESS: "BUSINESS: Separate facts, assumptions, estimates and recommendations. Do not fabricate market size, pricing, revenue or customer evidence. Show downside scenarios, dependencies, risks and measurable decision gates.",
+    CREATIVE: "CREATIVE: Generate distinctive options rather than superficial rewrites. Respect audience, channel, tone and constraints. Explain the concept, differentiation, intended effect and practical execution risks.",
+    OTHER: "GENERAL: Make the deliverable concrete, complete and usable. Separate known facts from assumptions and state what still requires human or external verification."
+  };
+  return guidance[taskType] || guidance.OTHER;
+}
+
 async function callModel(env, { sessionId, stage, model = env.OPENROUTER_MODEL, system, prompt, temperature = 0.4, maxTokens = 3500 }) {
   if (!env.OPENROUTER_API_KEY || !env.OPENROUTER_MODEL) {
     const error = new Error("Model provider is not configured. Set OPENROUTER_API_KEY and OPENROUTER_MODEL before starting sessions.");
@@ -206,6 +219,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         constraints: constraints.results ?? []
       };
     });
+    const taskMethod = taskGuidance(session.task_type);
     const criteriaText = [
       "USER REQUIREMENTS:",
       ...(acceptanceCriteria.requirements.length
@@ -257,7 +271,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       async () => callModel(this.env, {
         sessionId, stage: "PRIMARY",
         system: "You are the primary performance engine inside OUTPERFORM. Produce the strongest useful deliverable for the user's objective. Respect constraints, distinguish facts from assumptions, and do not claim tests or research were performed unless they were.",
-        prompt: `TASK TYPE: ${session.task_type}\nOBJECTIVE: ${session.objective}\nCONTEXT AND EXISTING WORK:\n${contextObject || "(No additional context supplied)"}\n\n${criteriaText}\n\nProduce a complete first attempt. State material assumptions and unresolved uncertainties.`,
+        prompt: `TASK TYPE: ${session.task_type}\nTASK-SPECIFIC METHOD: ${taskMethod}\nOBJECTIVE: ${session.objective}\nCONTEXT AND EXISTING WORK:\n${contextObject || "(No additional context supplied)"}\n\n${criteriaText}\n\nProduce a complete first attempt. State material assumptions and unresolved uncertainties.`,
         temperature: 0.45
       })
     );
@@ -319,7 +333,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       callModel(this.env, {
         sessionId, stage: "ADJUDICATION",
         system: "You are an independent evaluator. Compare the candidates against the stated objective and task type. Return ONLY valid JSON with keys preferred (primary|challenger), rationale, strengths (array), risks (array), improvementIdeas (array). Do not claim external verification, factual validation, code execution or test results. If uncertain, prefer primary and explain why.",
-        prompt: `OBJECTIVE: ${session.objective}\nTASK TYPE: ${session.task_type}\n${criteriaText}\n\nPRIMARY CANDIDATE:\n${primaryContent}\n\nCHALLENGER CANDIDATE:\n${challengerArtifact ? challengerContent : "(No challenger candidate was produced)"}\n\nCompare for correctness, completeness, clarity, constraint adherence and likely usefulness. This is a model evaluation, not external verification.`,
+        prompt: `OBJECTIVE: ${session.objective}\nTASK TYPE: ${session.task_type}\nTASK-SPECIFIC METHOD: ${taskMethod}\n${criteriaText}\n\nPRIMARY CANDIDATE:\n${primaryContent}\n\nCHALLENGER CANDIDATE:\n${challengerArtifact ? challengerContent : "(No challenger candidate was produced)"}\n\nCompare for correctness, completeness, clarity, constraint adherence and likely usefulness. This is a model evaluation, not external verification.`,
         temperature: 0.1,
         maxTokens: 1800
       })
@@ -343,7 +357,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       finalContent = await step.do("final-improvement", async () => callModel(this.env, {
         sessionId, stage: "FINAL_IMPROVEMENT",
         system: "You are OUTPERFORM's final improvement engine. Your job is to deliver a meaningfully better final artifact, not another critique. Integrate the strongest candidate material, fix the evaluator's identified weaknesses, satisfy every mandatory requirement and respect every constraint. Preserve correct content. Do not invent evidence, citations, tests or research. Make the output directly usable.",
-        prompt: `OBJECTIVE: ${session.objective}\nTASK TYPE: ${session.task_type}\n\n${criteriaText}\n\nBACKGROUND:\n${contextObject || "(No additional context supplied)"}\n\nBEST CANDIDATE:\n${selectedContent}\n\nCOMPARATIVE EVALUATION:\n${JSON.stringify(evaluation, null, 2)}\n\nProduce the strongest final version. Incorporate useful improvements, resolve identified risks where possible, and clearly label any uncertainty or work that still requires external verification.`,
+        prompt: `OBJECTIVE: ${session.objective}\nTASK TYPE: ${session.task_type}\nTASK-SPECIFIC METHOD: ${taskMethod}\n\n${criteriaText}\n\nBACKGROUND:\n${contextObject || "(No additional context supplied)"}\n\nBEST CANDIDATE:\n${selectedContent}\n\nCOMPARATIVE EVALUATION:\n${JSON.stringify(evaluation, null, 2)}\n\nProduce the strongest final version. Incorporate useful improvements, resolve identified risks where possible, and clearly label any uncertainty or work that still requires external verification.`,
         temperature: 0.25,
         maxTokens: 4500
       }));
@@ -395,7 +409,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       const finalReviewText = await step.do("final-criteria-review", async () => callModel(this.env, {
         sessionId, stage: "FINAL_REVIEW",
         system: "You are the final quality reviewer for OUTPERFORM. Review the final artifact against the user's explicit requirements and constraints. You cannot execute code, browse the web, inspect external systems or independently verify facts in this step. Return ONLY JSON with assessment (string), criteriaCoverage (array of objects or strings), remainingRisks (array), and unverifiedClaims (array). Never mark anything externally verified.",
-        prompt: `OBJECTIVE: ${session.objective}\nTASK TYPE: ${session.task_type}\n\n${criteriaText}\n\nCONSTRAINTS:\n${constraintsText}\n\nDETERMINISTIC QUALITY GATE:\n${JSON.stringify(qualityGate)}\n\nFINAL ARTIFACT:\n${finalContent}\n\nAssess how well the artifact addresses each requirement and constraint, use the mechanical check results as limited signals rather than proof of correctness, identify remaining gaps and flag claims needing external verification.`,
+        prompt: `OBJECTIVE: ${session.objective}\nTASK TYPE: ${session.task_type}\nTASK-SPECIFIC METHOD: ${taskMethod}\n\n${criteriaText}\n\nCONSTRAINTS:\n${constraintsText}\n\nDETERMINISTIC QUALITY GATE:\n${JSON.stringify(qualityGate)}\n\nFINAL ARTIFACT:\n${finalContent}\n\nAssess how well the artifact addresses each requirement and constraint, use the mechanical check results as limited signals rather than proof of correctness, identify remaining gaps and flag claims needing external verification.`,
         temperature: 0.1,
         maxTokens: 1800
       }));
