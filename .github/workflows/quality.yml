@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: outperform-quality
+  cancel-in-progress: true
+
 jobs:
   domain-tests:
     runs-on: ubuntu-latest
