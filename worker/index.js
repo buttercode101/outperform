@@ -1,4 +1,5 @@
 import { createSession } from "../src/domain/session.js";
+import { normalizeSessionBudget } from "../src/domain/budget.js";
 import { createAuth } from "./auth.js";
 
 export { ImprovementWorkflow } from "./workflows/improvement.js";
@@ -47,16 +48,7 @@ async function createWorkSession(request, env, user) {
   }
   if (context.length > 100_000) return error("CONTEXT_TOO_LARGE", "Context must be smaller than 100 KB.", 413);
 
-  const requestedBudget = body.budget && typeof body.budget === "object" ? body.budget : {};
-  const boundedInteger = (value, fallback, min, max) => {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? Math.min(max, Math.max(min, Math.floor(parsed))) : fallback;
-  };
-  const budget = {
-    maxModelCalls: boundedInteger(requestedBudget.maxModelCalls, 5, 3, 5),
-    maxWallClockSeconds: 600,
-    maxToolCalls: 4
-  };
+  const budget = normalizeSessionBudget(body.budget);
   const requirements = Array.isArray(body.requirements) ? body.requirements.slice(0, 30) : [];
   const constraints = Array.isArray(body.constraints) ? body.constraints.slice(0, 30) : [];
   let session;
