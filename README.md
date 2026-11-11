@@ -10,7 +10,7 @@ OUTPERFORM is designed to improve real work—not merely compare model answers. 
 
 The first executable product slice is under active development.
 
-- React workspace with email/password authentication.
+- Guest-first React workspace: build and export local work briefs without registering; email/password accounts unlock cloud-backed AI execution and history.
 - Owner-scoped work sessions and context storage.
 - Durable Cloudflare Workflow for primary execution, independent challenge, comparative adjudication, a final improvement pass and a separate criteria review.
 - Versioned Markdown artifacts stored in R2, with content hashes.
@@ -22,7 +22,7 @@ The first executable product slice is under active development.
 - Failed workflows are recorded as failed rather than left in an active state.
 - Concurrent start requests are guarded by a conditional database claim.
 
-The application is **not yet deployed as a live production Worker**. Production D1 and R2 resources have been created and the schema has been applied and checked. Deployment still requires the repository's `CLOUDFLARE_API_TOKEN` GitHub Actions secret and a configured OpenRouter API key/model.
+The production Worker is deployed and its automated health gate has passed: D1, R2, Durable Workflow, authentication configuration and OpenRouter model-provider configuration are present. The guest-first access model is documented in [docs/ACCESS_MODEL.md](docs/ACCESS_MODEL.md). Full user-driven end-to-end acceptance (create account → run real session → retrieve artifact → approve/reject) remains a separate verification gate.
 
 ## Architecture
 
