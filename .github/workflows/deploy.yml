@@ -90,6 +90,7 @@ jobs:
                   const ready = health.ok === true &&
                     health.database === true &&
                     health.dailyUsageConfigured === true &&
+                    health.userPlaybooksConfigured === true &&
                     health.artifactStorage === true &&
                     health.durableWorkflow === true &&
                     health.authenticationConfigured === true &&
