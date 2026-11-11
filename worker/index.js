@@ -177,7 +177,7 @@ async function handleApi(request, env) {
 
     if (url.pathname === "/api/usage" && request.method === "GET") {
       const usageDate = new Date().toISOString().slice(0, 10);
-      const dailyLimit = Math.max(1, Math.min(50, Number(env.MAX_DAILY_SESSIONS) || 10));
+      const dailyLimit = Math.max(1, Math.min(50, Number(env.MAX_DAILY_AI_RUNS) || 10));
       const [usage, modelUsage] = await Promise.all([
         env.DB.prepare(
           "SELECT runs_started FROM user_daily_usage WHERE user_id = ? AND usage_date = ?"
@@ -354,7 +354,7 @@ async function handleApi(request, env) {
 
         const usageDate = new Date().toISOString().slice(0, 10);
         const now = new Date().toISOString();
-        const dailyLimit = Math.max(1, Math.min(50, Number(env.MAX_DAILY_SESSIONS) || 10));
+        const dailyLimit = Math.max(1, Math.min(50, Number(env.MAX_DAILY_AI_RUNS) || 10));
         const usageReservation = await env.DB.prepare(
           "INSERT INTO user_daily_usage (user_id, usage_date, runs_started, created_at, updated_at) VALUES (?, ?, 1, ?, ?) ON CONFLICT(user_id, usage_date) DO UPDATE SET runs_started = runs_started + 1, updated_at = excluded.updated_at WHERE runs_started < ? RETURNING runs_started"
         ).bind(user.id, usageDate, now, now, dailyLimit).first();
