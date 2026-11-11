@@ -217,6 +217,7 @@ async function handleApi(request, env) {
     if (url.pathname === "/api/playbooks" && request.method === "POST") {
       let body;
       try { body = await request.json(); } catch { return error("INVALID_JSON", "Provide a valid playbook.", 400); }
+      if (!body || typeof body !== "object" || Array.isArray(body)) return error("INVALID_PLAYBOOK", "Provide a playbook object.", 400);
       const allowedTypes = new Set(["CODE","RESEARCH","DOCUMENT","BUSINESS","CREATIVE","OTHER"]);
       const name = typeof body.name === "string" ? body.name.trim().slice(0, 80) : "";
       const taskType = typeof body.taskType === "string" ? body.taskType.toUpperCase() : "";
