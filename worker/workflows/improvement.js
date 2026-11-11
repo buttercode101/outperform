@@ -360,9 +360,9 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       const sourceRef = "artifact:" + finalArtifact.id + "#sha256:" + finalArtifact.contentHash;
       const now = isoNow();
       const evidence = result.checks.map((check) => this.env.DB.prepare(
-        "INSERT INTO evidence_records (id, session_id, claim, status, source_type, source_ref, details_json, observed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT OR IGNORE INTO evidence_records (id, session_id, claim, status, source_type, source_ref, details_json, observed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
       ).bind(
-        crypto.randomUUID(),
+        "quality-" + sessionId + "-" + check.id,
         sessionId,
         check.label + ": " + check.detail,
         check.status === "PASS" ? "VERIFIED" : check.status === "FAIL" ? "REFUTED" : "UNVERIFIED",
@@ -372,7 +372,9 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         now
       ));
       if (evidence.length) await this.env.DB.batch(evidence);
-      await recordEvent(this.env.DB, sessionId, "DETERMINISTIC_QUALITY_GATE_COMPLETED", result);
+      await this.env.DB.prepare(
+        "INSERT OR IGNORE INTO session_events (id, session_id, event_type, payload_json, occurred_at) VALUES (?, ?, ?, ?, ?)"
+      ).bind("quality-gate-" + sessionId, sessionId, "DETERMINISTIC_QUALITY_GATE_COMPLETED", JSON.stringify(result), now).run();
       return result;
     });
 
