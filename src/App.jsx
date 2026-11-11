@@ -234,6 +234,8 @@ export default function App() {
   const [selectedArtifactId, setSelectedArtifactId] = useState("");
   const [artifactContents, setArtifactContents] = useState({});
   const [artifactLoading, setArtifactLoading] = useState(false);
+  const [integrityResults, setIntegrityResults] = useState({});
+  const [integrityBusyId, setIntegrityBusyId] = useState("");
   const [compareMode, setCompareMode] = useState(false);
   const [leftArtifactId, setLeftArtifactId] = useState("");
   const [rightArtifactId, setRightArtifactId] = useState("");
@@ -375,6 +377,11 @@ export default function App() {
         loaded[item.id] = artifact.content || "";
       }));
       setArtifactContents(loaded);
+      const integrity = {};
+      for (const event of detail.events || []) {
+        if (event.event_type === "ARTIFACT_INTEGRITY_CHECKED" && event.payload?.artifactId) integrity[event.payload.artifactId] = event.payload;
+      }
+      setIntegrityResults(integrity);
       setSelectedArtifactId(best?.id || "");
       setSelectedContent(best ? (loaded[best.id] || "") : "");
       setLeftArtifactId(detail.artifacts.find((item) => item.created_by === "PRIMARY")?.id || detail.artifacts[0]?.id || "");
@@ -421,6 +428,34 @@ export default function App() {
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+
+  async function verifyArtifactIntegrity(artifactId) {
+    if (!selected?.session?.id || !artifactId || integrityBusyId) return;
+    setIntegrityBusyId(artifactId);
+    try {
+      const response = await fetch("/api/sessions/" + selected.session.id + "/artifacts/" + artifactId + "/verify", { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Artifact integrity check failed.");
+      setIntegrityResults((current) => ({ ...current, [artifactId]: data.integrity }));
+      setSelected((current) => current ? ({
+        ...current,
+        detail: {
+          ...current.detail,
+          events: [...current.detail.events, {
+            event_type: "ARTIFACT_INTEGRITY_CHECKED",
+            payload: data.integrity,
+            occurred_at: data.integrity.checkedAt
+          }]
+        }
+      }) : current);
+      setNotice(data.integrity.matches ? "Artifact fingerprint verified. The retrieved content matches its stored SHA-256 hash." : "Integrity mismatch detected. Do not rely on this artifact until investigated.");
+    } catch (e) {
+      setNotice(e.message);
+    } finally {
+      setIntegrityBusyId("");
+    }
+  }
+
   function exportEvidencePassport() {
     if (!selected?.detail) return;
     const detail = selected.detail;
@@ -441,6 +476,10 @@ export default function App() {
       ...(detail.requirements?.length ? detail.requirements.map((item) => "- " + (item.mandatory ? "[MUST] " : "[SHOULD] ") + item.description) : ["- No explicit acceptance criteria were supplied."]), "",
       "## Constraints",
       ...(detail.constraints?.length ? detail.constraints.map((item) => "- " + item.description) : ["- No additional constraints supplied."]), "",
+      "## Artifact integrity checks",
+      ...(events.filter((event) => event.event_type === "ARTIFACT_INTEGRITY_CHECKED").length
+        ? events.filter((event) => event.event_type === "ARTIFACT_INTEGRITY_CHECKED").map((event) => "- " + event.payload.status + " — " + event.payload.artifactId + " — stored " + event.payload.storedHash + " / recomputed " + event.payload.computedHash)
+        : ["- No explicit artifact integrity checks have been recorded."]), "",
       "## Model usage",
       ...(events.filter((event) => event.event_type === "MODEL_USAGE_RECORDED").length
         ? events.filter((event) => event.event_type === "MODEL_USAGE_RECORDED").map((event) => "- " + event.payload.stage + ": " + (event.payload.totalTokens ?? "unknown") + " tokens; " + (event.payload.costCredits ?? "cost unavailable") + " credits; model " + event.payload.model)
@@ -670,7 +709,7 @@ export default function App() {
             <section className="artifact-library">
               <div className="artifact-library-head"><div><span className="section-kicker">VERSIONED OUTPUTS</span><h3>Work artifacts</h3></div><button className="secondary-button" onClick={exportEvidencePassport}>Export evidence passport</button></div>
               <div className="artifact-tabs">{selected.detail.artifacts.map((artifact) => <button key={artifact.id} className={"artifact-tab " + (selectedArtifactId === artifact.id ? "active" : "")} onClick={() => selectArtifact(artifact)}><strong>{artifact.created_by}</strong><span>Version {artifact.version}</span><small>SHA-256 · {artifact.content_hash?.slice(0,12)}…</small></button>)}</div>
-              <div className="artifact-toolbar"><span>{selected.detail.artifacts.find((item) => item.id === selectedArtifactId)?.content_hash ? "Content fingerprint: " + selected.detail.artifacts.find((item) => item.id === selectedArtifactId).content_hash : "No artifact selected"}</span><div><button className="small-action" onClick={() => setCompareMode((value) => !value)} disabled={selected.detail.artifacts.filter((item) => item.created_by !== "BASELINE").length < 2}>{compareMode ? "Close comparison" : "Compare candidates"}</button><button className="small-action" disabled={!selectedContent} onClick={() => downloadText("outperform-artifact-" + (selectedArtifactId || "export") + ".md", selectedContent)}>Download artifact</button></div></div>
+              <div className="artifact-toolbar"><span>{selected.detail.artifacts.find((item) => item.id === selectedArtifactId)?.content_hash ? "Content fingerprint: " + selected.detail.artifacts.find((item) => item.id === selectedArtifactId).content_hash : "No artifact selected"}</span><div><button className="small-action" disabled={!selectedArtifactId || integrityBusyId === selectedArtifactId} onClick={() => verifyArtifactIntegrity(selectedArtifactId)}>{integrityBusyId === selectedArtifactId ? "Checking…" : "Verify fingerprint"}</button><button className="small-action" onClick={() => setCompareMode((value) => !value)} disabled={selected.detail.artifacts.filter((item) => item.created_by !== "BASELINE").length < 2}>{compareMode ? "Close comparison" : "Compare candidates"}</button><button className="small-action" disabled={!selectedContent} onClick={() => downloadText("outperform-artifact-" + (selectedArtifactId || "export") + ".md", selectedContent)}>Download artifact</button></div></div>{integrityResults[selectedArtifactId] && <div className={"integrity-result " + (integrityResults[selectedArtifactId].matches ? "integrity-pass" : "integrity-fail")}><strong>{integrityResults[selectedArtifactId].matches ? "Fingerprint verified" : "Integrity mismatch"}</strong><span>{integrityResults[selectedArtifactId].method}</span></div>}
               {compareMode && <div className="artifact-comparison"><div className="comparison-heading"><strong>Candidate comparison</strong><span>Read both complete outputs before choosing a direction.</span></div><div className="comparison-selectors"><label>Candidate A<select value={leftArtifactId} onChange={(e) => setLeftArtifactId(e.target.value)}>{selected.detail.artifacts.filter((item) => item.created_by !== "BASELINE").map((item) => <option key={item.id} value={item.id}>{item.created_by} · v{item.version}</option>)}</select></label><label>Candidate B<select value={rightArtifactId} onChange={(e) => setRightArtifactId(e.target.value)}>{selected.detail.artifacts.filter((item) => item.created_by !== "BASELINE").map((item) => <option key={item.id} value={item.id}>{item.created_by} · v{item.version}</option>)}</select></label></div><div className="comparison-columns">{[leftArtifactId,rightArtifactId].map((id,index) => <article key={id + "-" + index}><h4>{selected.detail.artifacts.find((item) => item.id === id)?.created_by || "Candidate"} · {index ? "B" : "A"}</h4><pre>{artifactContents[id] || "Artifact not loaded."}</pre></article>)}</div></div>}
               {!compareMode && <pre className="artifact-content">{artifactLoading ? "Loading artifact…" : selectedContent || "No selected artifact is available yet."}</pre>}
             </section>
