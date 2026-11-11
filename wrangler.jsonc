@@ -12,7 +12,7 @@
   "vars": {
     "OPENROUTER_MODEL": "deepseek/deepseek-v4-flash",
     "OPENROUTER_CHALLENGER_MODEL": "qwen/qwen3.5-flash-02-23",
-    "MAX_DAILY_SESSIONS": "10"
+    "MAX_DAILY_AI_RUNS": "10"
   },
   "d1_databases": [
     {
