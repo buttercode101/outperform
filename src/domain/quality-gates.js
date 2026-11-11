@@ -115,7 +115,8 @@ export function inspectArtifact(content, { taskType = "OTHER" } = {}) {
     },
     limitations: [
       "These checks inspect text structure only.",
-      "They do not prove factual accuracy, requirement satisfaction, code correctness, test execution, legal compliance or real-world usefulness."
+      "They do not prove factual accuracy, requirement satisfaction, code correctness, test execution, legal compliance or real-world usefulness.",
+      "Task-specific scans are narrow pattern checks, not complete security, source-validation or financial audits."
     ]
   };
 }
