@@ -2,7 +2,7 @@
 
 **AI work improvement, challenge and verification.**
 
-OUTPERFORM is designed to improve real work—not merely compare model answers. A user brings an idea, draft, project or existing deliverable. The engine creates a baseline, produces a primary result, independently challenges it, compares candidates and presents a reviewable result with its limitations and evidence trail.
+OUTPERFORM is designed to improve real work—not merely compare model answers. A user brings an idea, draft, project or existing deliverable. The engine preserves an immutable baseline, produces a primary result with DeepSeek, creates a separate Qwen challenger, adjudicates candidates, improves the selected result, runs task-specific mechanical checks and presents a reviewable evidence trail.
 
 > Make AI work harder. Make the work better. Prove the difference.
 
@@ -18,7 +18,9 @@ The deployed product is evolving from a generic improvement workflow into a cros
 - Per-stage OpenRouter usage events with generation IDs, model, tokens and provider-reported cost where supplied.
 - Owner-scoped work sessions and context storage.
 - Durable Cloudflare Workflow with a DeepSeek primary model, a distinct Qwen challenger model, comparative adjudication, a final improvement pass and a separate criteria review.
-- Versioned Markdown artifacts stored in R2, with content hashes.
+- Immutable baseline and versioned candidate artifacts stored in R2, linked by parent-artifact lineage and content hashes.
+- Explicit SHA-256 recomputation for any artifact, recorded as a verifiable evidence event.
+- User-owned reusable playbooks stored in D1 and scoped to the authenticated account.
 - D1 event history, requirements, approval and evidence tables.
 - Explicit human approve/reject decisions, recorded against the session.
 - User requirements and constraints are persisted and passed to every model stage.
@@ -56,7 +58,8 @@ Set the following in your local `.dev.vars` file before running model workflows:
 - `BETTER_AUTH_SECRET`: a random secret of at least 32 characters.
 - `BETTER_AUTH_URL`: the local application origin.
 - `OPENROUTER_API_KEY`: your OpenRouter API key.
-- `OPENROUTER_MODEL`: a model identifier supported by your OpenRouter account.
+- `OPENROUTER_MODEL`: the primary model identifier supported by your OpenRouter account.
+- `OPENROUTER_CHALLENGER_MODEL`: a distinct challenger model identifier supported by your OpenRouter account.
 
 Never commit `.dev.vars` or paste production credentials into source files.
 
@@ -74,12 +77,12 @@ The GitHub Quality workflow runs all three checks and retains the generated Clou
 
 See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for the exact token, secret and live-verification checklist.
 
-1. Add `CLOUDFLARE_API_TOKEN` as a GitHub Actions repository secret. It needs permission to deploy Workers and manage the configured bindings/workflow.
-2. Configure production Worker secrets `BETTER_AUTH_SECRET`, `OPENROUTER_API_KEY`, and `OPENROUTER_MODEL`.
-3. Run **Deploy production** from GitHub Actions using workflow dispatch.
-4. Verify the deployed `/api/health` endpoint, account creation, sign-in, session creation, workflow execution, artifact retrieval and approval decisions.
+1. Push to \`main\` or manually run **Deploy production** from GitHub Actions.
+2. The workflow runs domain tests and source validation, builds the app, applies pending D1 migrations, deploys the Worker, configures the OpenRouter secret and creates the Better Auth secret if it does not already exist.
+3. The live health gate verifies D1, daily usage, private playbooks, R2, Durable Workflow, authentication and both model configurations.
+4. A production smoke test checks that guest entry is public, the guest workspace is present in the built bundle, and private session/usage APIs reject anonymous requests.
 
-The deployment workflow builds the app and deploys the generated configuration at `dist/worker/wrangler.json`. The regular quality workflow does not deploy production.
+The regular Quality workflow does not deploy production. Full signed-in end-to-end acceptance remains a separate release gate. See \`docs/DEPLOYMENT.md\`.
 
 ## Engineering principles
 
