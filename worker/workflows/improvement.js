@@ -64,7 +64,7 @@ async function callModel(env, { sessionId, stage, model = env.OPENROUTER_MODEL, 
     throw error;
   }
   const usage = payload?.usage ?? {};
-  const numberOrNull = (value) => Number.isFinite(Number(value)) ? Number(value) : null;
+  const numberOrNull = (value) => value === null || value === undefined || value === "" ? null : Number.isFinite(Number(value)) ? Number(value) : null;
   const promptTokens = numberOrNull(usage.prompt_tokens);
   const completionTokens = numberOrNull(usage.completion_tokens);
   const totalTokens = numberOrNull(usage.total_tokens) ?? (promptTokens !== null && completionTokens !== null ? promptTokens + completionTokens : null);
