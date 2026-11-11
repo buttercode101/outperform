@@ -8,9 +8,12 @@ OUTPERFORM is designed to improve real work—not merely compare model answers. 
 
 ## Current implementation
 
-The first executable product slice is under active development.
+The deployed product is evolving from a generic improvement workflow into a cross-tool improvement and proof platform. See [Product Strategy v2](docs/PRODUCT_STRATEGY_V2.md) for the product direction and competitive differentiation.
 
-- Guest-first React workspace: build and export local work briefs without registering; email/password accounts unlock cloud-backed AI execution and history.
+- Guest-first workspace with local briefs, starter playbooks, Markdown export and explicit opt-in guest-to-account import.
+- Authenticated workspace with session search/filtering, workflow metrics, task-specific playbooks and performance view.
+- Candidate artifact library with side-by-side comparison, SHA-256 fingerprints, artifact downloads and private Evidence Passport export.
+- Deterministic artifact quality gate (content presence, substance threshold, placeholder scan, repeated headings and unsupported verification-language scan) recorded as evidence records.
 - Owner-scoped work sessions and context storage.
 - Durable Cloudflare Workflow for primary execution, independent challenge, comparative adjudication, a final improvement pass and a separate criteria review.
 - Versioned Markdown artifacts stored in R2, with content hashes.
@@ -22,7 +25,7 @@ The first executable product slice is under active development.
 - Failed workflows are recorded as failed rather than left in an active state.
 - Concurrent start requests are guarded by a conditional database claim.
 
-The production Worker is deployed and its automated health gate has passed: D1, R2, Durable Workflow, authentication configuration and OpenRouter model-provider configuration are present. The guest-first access model is documented in [docs/ACCESS_MODEL.md](docs/ACCESS_MODEL.md). Full user-driven end-to-end acceptance (create account → run real session → retrieve artifact → approve/reject) remains a separate verification gate.
+The production Worker and health gate were verified on November 11, 2026. Later UI and workflow changes are being rebuilt and redeployed through GitHub Actions; check the latest workflow run before treating the newest commit as live. Full user-driven end-to-end acceptance (guest import, account creation, real model run, evidence retrieval, approval/rejection and tenant-isolation tests) remains required. Deterministic text checks are not external verification.
 
 ## Architecture
 
@@ -89,4 +92,4 @@ The deployment workflow builds the app and deploys the generated configuration a
 
 ## Product and planning
 
-See `docs/planning/` and `docs/engineering/` for the product foundation, requirements, architecture, challenge protocol, verification model, market hypotheses and execution decisions.
+See [Product Strategy v2](docs/PRODUCT_STRATEGY_V2.md), [Access Model](docs/ACCESS_MODEL.md), `docs/planning/` and `docs/engineering/` for the product direction, requirements, architecture, challenge protocol, verification model, market hypotheses and execution decisions.
