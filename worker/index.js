@@ -29,6 +29,13 @@ async function listSessions(env, userId) {
   return result.results ?? [];
 }
 
+
+async function releaseDailyRunReservation(env, userId, usageDate) {
+  await env.DB.prepare(
+    "UPDATE user_daily_usage SET runs_started = MAX(0, runs_started - 1), updated_at = ? WHERE user_id = ? AND usage_date = ?"
+  ).bind(new Date().toISOString(), userId, usageDate).run();
+}
+
 async function createWorkSession(request, env, user) {
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.toLowerCase().includes("application/json")) {
@@ -132,9 +139,9 @@ async function handleApi(request, env) {
       const usageDate = new Date().toISOString().slice(0, 10);
       const dailyLimit = Math.max(1, Math.min(50, Number(env.MAX_DAILY_SESSIONS) || 10));
       const usage = await env.DB.prepare(
-        "SELECT sessions_created FROM user_daily_usage WHERE user_id = ? AND usage_date = ?"
+        "SELECT runs_started FROM user_daily_usage WHERE user_id = ? AND usage_date = ?"
       ).bind(user.id, usageDate).first();
-      return json({ usageDate, sessionsCreated: usage?.sessions_created ?? 0, dailyLimit, remaining: Math.max(0, dailyLimit - (usage?.sessions_created ?? 0)), resetTimezone: "UTC" });
+      return json({ usageDate, runsStarted: usage?.runs_started ?? 0, dailyLimit, remaining: Math.max(0, dailyLimit - (usage?.runs_started ?? 0)), resetTimezone: "UTC" });
     }
 
     if (url.pathname === "/api/sessions" && request.method === "GET") {
@@ -197,31 +204,63 @@ async function handleApi(request, env) {
 
       if (action === "start" && request.method === "POST") {
         if (!["CREATED", "BLOCKED"].includes(session.status)) {
-          return error("INVALID_SESSION_STATE", `This session cannot start from ${session.status}.`, 409);
+          return error("INVALID_SESSION_STATE", "This session cannot start from " + session.status + ".", 409);
         }
-        const claim = await env.DB.prepare(
-          "UPDATE work_sessions SET status = 'UNDERSTANDING', version = version + 1, updated_at = ? WHERE id = ? AND owner_id = ? AND status IN ('CREATED','BLOCKED')"
-        ).bind(new Date().toISOString(), session.id, user.id).run();
+
+        const usageDate = new Date().toISOString().slice(0, 10);
+        const now = new Date().toISOString();
+        const dailyLimit = Math.max(1, Math.min(50, Number(env.MAX_DAILY_SESSIONS) || 10));
+        const usageReservation = await env.DB.prepare(
+          "INSERT INTO user_daily_usage (user_id, usage_date, runs_started, created_at, updated_at) VALUES (?, ?, 1, ?, ?) ON CONFLICT(user_id, usage_date) DO UPDATE SET runs_started = runs_started + 1, updated_at = excluded.updated_at WHERE runs_started < ? RETURNING runs_started"
+        ).bind(user.id, usageDate, now, now, dailyLimit).first();
+        if (!usageReservation) {
+          return error("DAILY_RUN_LIMIT_REACHED", "You have used today's " + dailyLimit + " AI runs. Your saved work is safe; the allowance resets at midnight UTC.", 429);
+        }
+
+        let claim;
+        try {
+          claim = await env.DB.prepare(
+            "UPDATE work_sessions SET status = 'UNDERSTANDING', version = version + 1, updated_at = ? WHERE id = ? AND owner_id = ? AND status IN ('CREATED','BLOCKED')"
+          ).bind(new Date().toISOString(), session.id, user.id).run();
+        } catch (claimError) {
+          await releaseDailyRunReservation(env, user.id, usageDate);
+          throw claimError;
+        }
         if ((claim.meta?.changes ?? 0) !== 1) {
+          await releaseDailyRunReservation(env, user.id, usageDate);
           return error("SESSION_ALREADY_RUNNING", "This session has already been started or changed.", 409);
         }
-        const instanceId = `${session.id}-run-${session.version + 1}`;
+
+        const instanceId = session.id + "-run-" + (session.version + 1);
+        let instance;
         try {
-          const instance = await env.OUTPERFORM_WORKFLOW.create({
+          instance = await env.OUTPERFORM_WORKFLOW.create({
             id: instanceId,
             params: { sessionId: session.id, userId: user.id }
           });
-          await env.DB.prepare(
-            "INSERT INTO session_events (id, session_id, event_type, payload_json, occurred_at) VALUES (?, ?, ?, ?, ?)"
-          ).bind(crypto.randomUUID(), session.id, "WORKFLOW_STARTED",
-            JSON.stringify({ workflowInstanceId: instance.id }), new Date().toISOString()).run();
-          return json({ workflowInstanceId: instance.id, status: "STARTED" }, 202);
         } catch (workflowError) {
           await env.DB.prepare(
             "UPDATE work_sessions SET status = ?, version = version + 1, updated_at = ? WHERE id = ? AND owner_id = ? AND status = 'UNDERSTANDING'"
           ).bind(session.status, new Date().toISOString(), session.id, user.id).run();
+          await releaseDailyRunReservation(env, user.id, usageDate);
           throw workflowError;
         }
+
+        try {
+          await env.DB.prepare(
+            "INSERT INTO session_events (id, session_id, event_type, payload_json, occurred_at) VALUES (?, ?, ?, ?, ?)"
+          ).bind(crypto.randomUUID(), session.id, "WORKFLOW_STARTED",
+            JSON.stringify({ workflowInstanceId: instance.id }), new Date().toISOString()).run();
+        } catch (eventError) {
+          console.error("OUTPERFORM workflow started but event ledger write failed", {
+            sessionId: session.id, workflowInstanceId: instance.id, message: eventError.message
+          });
+        }
+        return json({
+          workflowInstanceId: instance.id,
+          status: "STARTED",
+          usage: { runsStarted: usageReservation.runs_started, dailyLimit, usageDate }
+        }, 202);
       }
 
       if (action === null && request.method === "GET") {
