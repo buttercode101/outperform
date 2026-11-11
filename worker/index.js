@@ -142,6 +142,39 @@ async function handleApi(request, env) {
     const user = await getUser(auth, request);
     if (!user) return error("UNAUTHENTICATED", "Sign in to access your workspace.", 401);
 
+    if (url.pathname === "/api/account" && request.method === "DELETE") {
+      let body;
+      try { body = await request.json(); } catch { return error("INVALID_JSON", "Confirm account deletion explicitly.", 400); }
+      if (body?.confirmation !== "DELETE MY ACCOUNT") {
+        return error("CONFIRMATION_REQUIRED", "Send the exact confirmation text to delete this account.", 400);
+      }
+      const [artifactRows, contextRows] = await Promise.all([
+        env.DB.prepare(
+          "SELECT a.object_key FROM artifacts a INNER JOIN work_sessions s ON s.id = a.session_id WHERE s.owner_id = ?"
+        ).bind(user.id).all(),
+        env.DB.prepare(
+          "SELECT context_object_key FROM work_sessions WHERE owner_id = ? AND context_object_key IS NOT NULL"
+        ).bind(user.id).all()
+      ]);
+      const objectKeys = [...new Set([
+        ...(artifactRows.results ?? []).map((item) => item.object_key),
+        ...(contextRows.results ?? []).map((item) => item.context_object_key)
+      ].filter(Boolean))];
+      const deletions = await Promise.allSettled(objectKeys.map((key) => env.ARTIFACTS.delete(key)));
+      const failedDeletes = deletions.filter((result) => result.status === "rejected");
+      if (failedDeletes.length) {
+        console.error("OUTPERFORM account deletion stopped because some R2 objects could not be deleted", {
+          userId: user.id, failedObjects: failedDeletes.length
+        });
+        return error("ACCOUNT_DATA_CLEANUP_FAILED", "Some stored files could not be deleted. The account was retained; contact support before retrying.", 503);
+      }
+      await env.DB.batch([
+        env.DB.prepare("DELETE FROM work_sessions WHERE owner_id = ?").bind(user.id),
+        env.DB.prepare('DELETE FROM "user" WHERE id = ?').bind(user.id)
+      ]);
+      return json({ deleted: true, storedObjectsDeleted: objectKeys.length });
+    }
+
     if (url.pathname === "/api/usage" && request.method === "GET") {
       const usageDate = new Date().toISOString().slice(0, 10);
       const dailyLimit = Math.max(1, Math.min(50, Number(env.MAX_DAILY_SESSIONS) || 10));
