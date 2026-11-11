@@ -121,9 +121,9 @@ async function createWorkSession(request, env, user) {
 async function handleApi(request, env) {
   const url = new URL(request.url);
   if (url.pathname === "/api/health" && request.method === "GET") {
-    const dailyUsageTable = await env.DB.prepare(
+    const dailyUsageTable = env.DB ? await env.DB.prepare(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'user_daily_usage'"
-    ).first().catch(() => null);
+    ).first().catch(() => null) : null;
     return json({
       ok: true,
       service: "outperform-api",
