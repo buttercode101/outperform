@@ -15,6 +15,56 @@ export function inspectArtifact(content, { taskType = "OTHER" } = {}) {
   const duplicateHeadings = headings.filter((heading, index) => headings.indexOf(heading) !== index);
   const hasPlaceholder = PLACEHOLDER_PATTERN.test(text);
   const unsupportedVerificationLanguage = UNSUPPORTED_CLAIM_PATTERN.test(text);
+  const taskSpecificChecks = [];
+  if (taskType === "CODE") {
+    const riskyPatterns = [
+      ["dynamic_eval", /\beval\s*\(/i],
+      ["dynamic_function", /\bnew\s+Function\s*\(/i],
+      ["html_injection", /\.innerHTML\s*=/i],
+      ["shell_execution", /\b(?:exec|execSync)\s*\(/i]
+    ];
+    const detected = riskyPatterns.filter(([, pattern]) => pattern.test(text)).map(([name]) => name);
+    taskSpecificChecks.push({
+      id: "code_risk_patterns",
+      label: "Common code-risk pattern scan",
+      status: detected.length ? "FLAG" : "PASS",
+      detail: detected.length
+        ? "Potentially risky patterns detected: " + detected.join(", ") + ". Review context and sanitization; this is not a full security scan."
+        : "No selected high-risk text patterns detected. This is not a substitute for static analysis or execution."
+    });
+  } else if (taskType === "RESEARCH") {
+    const links = text.match(/\[[^\]]+\]\(https?:\/\/[^)]+\)|https?:\/\/[^\s)]+/gi) || [];
+    taskSpecificChecks.push({
+      id: "research_source_links",
+      label: "Research source-link presence",
+      status: links.length ? "PASS" : "FLAG",
+      detail: links.length
+        ? links.length + " source link(s) detected. Their availability, authority and claim support have not been checked."
+        : "No source URLs detected. Claims requiring external evidence should be reviewed before relying on this research."
+    });
+  } else if (taskType === "DOCUMENT") {
+    const missingStructure = words >= 100 && headings.length < 2;
+    taskSpecificChecks.push({
+      id: "document_structure",
+      label: "Document structure scan",
+      status: missingStructure ? "FLAG" : "PASS",
+      detail: missingStructure
+        ? "A longer document has fewer than two Markdown headings. Confirm whether its structure suits the intended audience."
+        : "No obvious heading-structure issue detected by this simple check."
+    });
+  } else if (taskType === "BUSINESS") {
+    const quantified = /(?:[$€£]\s?\d|\bR\s?\d|\b\d+(?:\.\d+)?%)/.test(text);
+    const hasBasis = /\b(?:assumptions?|estimates?|risks?|uncertaint(?:y|ies)|source|basis|forecast)\b/i.test(text);
+    taskSpecificChecks.push({
+      id: "business_claim_basis",
+      label: "Quantified business-claim basis",
+      status: quantified && !hasBasis ? "FLAG" : "PASS",
+      detail: quantified && !hasBasis
+        ? "Quantified figures were found without an obvious assumptions, source, estimate or risk section. Validate the basis before making a decision."
+        : "No obvious unsupported quantified-claim pattern detected. Figures and assumptions have not been independently validated."
+    });
+  }
+
   const checks = [
     {
       id: "content_present",
@@ -49,6 +99,7 @@ export function inspectArtifact(content, { taskType = "OTHER" } = {}) {
         : "No common unsupported test/verification claim patterns were detected."
     }
   ];
+  checks.push(...taskSpecificChecks);
   const failures = checks.filter((check) => check.status === "FAIL").length;
   const flags = checks.filter((check) => check.status === "FLAG").length;
   return {
