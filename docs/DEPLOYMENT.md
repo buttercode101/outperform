@@ -1,56 +1,63 @@
-# Production deployment checklist
+# Production deployment and acceptance
 
-This checklist is required once per Cloudflare/GitHub environment.
+## Current infrastructure
 
-## 1. Create a Cloudflare API token
+The OUTPERFORM Cloudflare Worker is deployed at:
 
-In Cloudflare, open **My Profile → API Tokens → Create Token → Custom Token**.
+- https://outperform.buttercoder-dev.workers.dev
 
-Grant the following permission on the OUTPERFORM Cloudflare account:
+Production resources:
 
-- **Account / Workers Scripts / Write**
+- D1: \`outperform-prod\`
+- R2: \`outperform-artifacts-prod\`
+- Durable Workflow: \`outperform-improvement\`
+- Model gateway: OpenRouter
+- Configured model: \`deepseek/deepseek-v4-flash\`
 
-The previous deployment reached Cloudflare but failed on the Worker secrets endpoint with "No access to the specified resource". The existing GitHub token is active and can read Workers scripts, but it does not have the required write permission.
+On November 11, 2026, GitHub Actions deployment run #9 completed successfully. Its live health gate confirmed D1, R2, Durable Workflow, Better Auth configuration and OpenRouter configuration. That proves infrastructure readiness, not complete user-driven acceptance.
 
-Do not substitute a read-only Workers permission. Do not use the Global API Key. Keep the token account-scoped.
+## Deployment workflow
 
-## 2. Add GitHub Actions secrets
+GitHub Actions is the deployment authority:
 
-In GitHub, open:
+1. Open \`buttercode101/outperform\` → Actions → Deploy production.
+2. Inspect the latest run and commit SHA.
+3. Confirm domain tests, source validation and production build passed.
+4. Confirm Worker deployment and secret configuration passed.
+5. Confirm the live health endpoint returned the required healthy state.
 
-**buttercode101/outperform → Settings → Secrets and variables → Actions → New repository secret**
+The repository uses the GitHub Actions secrets \`CLOUDFLARE_API_TOKEN\` and \`OPENROUTER_API_KEY\`. The Cloudflare token must retain account-scoped Workers Scripts write access and the binding permissions needed by Wrangler. Never put secrets in source, issues, logs or chat.
 
-Add:
+If deployment credentials fail, inspect the failing workflow step and Cloudflare token permissions. Do not replace the account-scoped token with the Global API Key.
 
-- CLOUDFLARE_API_TOKEN: the account-scoped Cloudflare token with Workers Scripts / Write.
-- OPENROUTER_API_KEY: the key from the intended OpenRouter account.
+## Required production acceptance
 
-Never put either value in a commit, issue, pull request, chat message, or .dev.vars.
+A green deployment is only the start. Verify all of the following against the deployed commit:
 
-## 3. Deploy the Worker
+1. Guest mode loads without authentication.
+2. Guest briefs can be created, edited, saved through refresh and exported.
+3. Sign-up and sign-in work with correct validation and error states.
+4. Guest brief import is explicit, resumable, and creates saved sessions without automatically running AI.
+5. Authenticated users can create, list, retrieve and review sessions.
+6. A real model workflow completes through primary generation, independent challenger, comparative adjudication, final improvement, deterministic artifact checks and final criteria review.
+7. All artifact contents can be retrieved and SHA-256 hashes independently recomputed.
+8. Evidence records and event history match the artifact and workflow results.
+9. Approval and rejection are owner-scoped, recorded exactly once, and reject invalid state transitions.
+10. Cross-user access attempts for sessions, events, evidence and artifacts are denied.
+11. Request-size, session-creation, concurrency and model-call budgets are bounded.
+12. Errors, timeouts, provider failures and workflow retries recover without duplicate artifacts or orphaned active sessions.
+13. Mobile and desktop UI are tested at narrow and wide widths, including loading, empty, error and reduced-motion states.
 
-Open **Actions → Deploy production → Run workflow**.
+## Verification language
 
-The workflow installs dependencies, runs domain tests, validates Worker source, builds the Vite/Cloudflare application, deploys dist/worker/wrangler.json, ensures a persistent Better Auth secret exists, installs the OpenRouter key, and checks the live health endpoint.
+- A healthy endpoint means configured infrastructure is reachable.
+- A passing build means the application compiled.
+- Passing domain tests means covered domain cases passed.
+- A model-generated review is an AI opinion, not independent verification.
+- Deterministic text-quality checks verify only the specific mechanical properties they inspect.
+- External verification requires an actual tool run, a traceable result and an evidence reference.
+- Never mark the product production-ready based only on a deployment badge, screenshot or model assertion.
 
-Production resources are already provisioned:
+## Recovery and operations
 
-- D1: outperform-prod
-- R2: outperform-artifacts-prod
-- Workflow: outperform-improvement
-
-The D1 migration ledger records migrations 0001–0004 as applied.
-
-The production model is configured as deepseek/deepseek-v4-flash in wrangler.jsonc. It is a non-secret setting and should not be stored as an encrypted secret.
-
-## 4. Verify the live deployment
-
-1. Open /api/health and confirm database, artifact storage and durable workflow bindings are available.
-2. Confirm authenticationConfigured and modelProviderConfigured are both true.
-3. Create an account and sign in.
-4. Create a session with explicit requirements, constraints and source context.
-5. Confirm primary, challenger, final improvement and final criteria review events appear.
-6. Retrieve the final artifact and approve/reject it.
-7. Confirm the final status and decision event are persisted in D1.
-
-A successful build or a healthy /api/health response alone is not an end-to-end acceptance test.
+Before broad launch, document and test D1 backup/restore, R2 artifact retention/recovery, secret rotation, provider outage handling, log access, incident response and data deletion/retention. Establish alerts for failed workflows, rising provider error rates, unexpected usage spikes and storage failures.
