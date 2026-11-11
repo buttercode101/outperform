@@ -37,6 +37,7 @@ The differentiated product is a **portable, independent improvement and proof la
 7. **Evidence Passport:** versioned artifacts, hashes, requirement coverage, findings, evidence references, check logs, cost/latency, remaining risks and human decision in one exportable report.
 8. **Learning loop:** with user permission, turn approved corrections and failed checks into reusable playbooks and regression cases.
 9. **Portability:** provider-neutral architecture and exports. The user should not need to adopt one coding agent, model vendor or IDE to benefit.
+10. **User control:** explicit guest import, transparent run allowances, per-session exports and account/data deletion.
 
 ## 4. Product surfaces
 
