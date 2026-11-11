@@ -273,3 +273,16 @@ button:disabled{cursor:not-allowed;opacity:.45}
 .integrity-fail{background:#f8ece9;border-color:#ebd6d1;color:#984b3e}
 .integrity-fail span{color:#93685f}
 @media(max-width:520px){.integrity-result{align-items:flex-start;flex-direction:column;gap:4px}}
+
+.saved-playbook-library{margin:0 0 28px;padding:20px;background:#f4f5ef;border:1px solid #e0e3da}
+.saved-playbook-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}
+.saved-playbook-card{min-width:0;background:#fbfaf7;border:1px solid #e2e3dc;padding:16px;display:flex;flex-direction:column;justify-content:space-between;gap:16px}
+.saved-playbook-card h3{font:600 15px Manrope,sans-serif;letter-spacing:-.025em;margin:7px 0}
+.saved-playbook-card p{font-size:10px;line-height:1.65;color:#73796f}
+.saved-playbook-card small{font-size:9px;color:#8b9086}
+.saved-playbook-card>div:last-child{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.saved-playbook-card .primary-button{height:36px;font-size:10px}
+.saved-playbook-empty{margin-top:14px;padding:17px;border:1px dashed #d9ded5;color:#858a80;font-size:10px;line-height:1.6}
+.playbook-card-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto}
+.playbook-card-actions .primary-button,.playbook-card-actions .secondary-button{height:38px;font-size:10px}
+@media(max-width:640px){.saved-playbook-grid{grid-template-columns:1fr}.saved-playbook-library{padding:15px}.playbook-card-actions{width:100%}.playbook-card-actions button{flex:1}}
