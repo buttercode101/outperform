@@ -185,6 +185,16 @@ export default function App() {
   const [notice, setNotice] = useState("");
   const [selected, setSelected] = useState(null);
   const [selectedContent, setSelectedContent] = useState("");
+  const [selectedArtifactId, setSelectedArtifactId] = useState("");
+  const [artifactContents, setArtifactContents] = useState({});
+  const [artifactLoading, setArtifactLoading] = useState(false);
+  const [compareMode, setCompareMode] = useState(false);
+  const [leftArtifactId, setLeftArtifactId] = useState("");
+  const [rightArtifactId, setRightArtifactId] = useState("");
+  const [sessionSearch, setSessionSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [taskFilter, setTaskFilter] = useState("ALL");
+  const [activeView, setActiveView] = useState("overview");
   const [detailLoading, setDetailLoading] = useState(false);
 
   async function loadSessions() {
@@ -270,12 +280,20 @@ export default function App() {
       const response = await fetch(`/api/sessions/${session.id}`);
       const detail = await response.json();
       if (!response.ok) throw new Error(detail.message || "Could not load session.");
-      const best = detail.artifacts.find((item) => item.id === detail.session.bestArtifactId);
-      if (best) {
-        const artifactResponse = await fetch(`/api/sessions/${session.id}/artifacts/${best.id}`);
+      const best = detail.artifacts.find((item) => item.id === detail.session.bestArtifactId) || detail.artifacts[0];
+      const loaded = {};
+      await Promise.all(detail.artifacts.map(async (item) => {
+        const artifactResponse = await fetch("/api/sessions/" + session.id + "/artifacts/" + item.id);
+        if (!artifactResponse.ok) return;
         const artifact = await artifactResponse.json();
-        if (artifactResponse.ok) setSelectedContent(artifact.content || "");
-      }
+        loaded[item.id] = artifact.content || "";
+      }));
+      setArtifactContents(loaded);
+      setSelectedArtifactId(best?.id || "");
+      setSelectedContent(best ? (loaded[best.id] || "") : "");
+      setLeftArtifactId(detail.artifacts.find((item) => item.created_by === "PRIMARY")?.id || detail.artifacts[0]?.id || "");
+      setRightArtifactId(detail.artifacts.find((item) => item.created_by === "CHALLENGER")?.id || detail.artifacts[1]?.id || "");
+      setCompareMode(false);
       setSelected({ session, detail });
     } catch (e) {
       setNotice(e.message);
@@ -283,6 +301,93 @@ export default function App() {
       setDetailLoading(false);
     }
   }
+
+
+  async function selectArtifact(artifact) {
+    if (!selected?.session?.id || !artifact?.id) return;
+    setSelectedArtifactId(artifact.id);
+    if (Object.prototype.hasOwnProperty.call(artifactContents, artifact.id)) {
+      setSelectedContent(artifactContents[artifact.id]);
+      return;
+    }
+    setArtifactLoading(true);
+    try {
+      const response = await fetch("/api/sessions/" + selected.session.id + "/artifacts/" + artifact.id);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Could not retrieve this artifact.");
+      const content = data.content || "";
+      setArtifactContents((current) => ({ ...current, [artifact.id]: content }));
+      setSelectedContent(content);
+    } catch (e) {
+      setNotice(e.message);
+    } finally {
+      setArtifactLoading(false);
+    }
+  }
+
+  function downloadText(filename, content) {
+    const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function exportEvidencePassport() {
+    if (!selected?.detail) return;
+    const detail = selected.detail;
+    const events = detail.events || [];
+    const artifacts = detail.artifacts || [];
+    const finalReview = events.find((event) => event.event_type === "FINAL_REVIEW_COMPLETED")?.payload?.review;
+    const evaluationEvent = events.find((event) => event.event_type === "RESULT_READY_FOR_REVIEW");
+    const evaluation = evaluationEvent?.payload?.comparativeEvaluation || evaluationEvent?.payload?.evaluation;
+    const report = [
+      "# OUTPERFORM Evidence Passport", "",
+      "**Session:** " + detail.session.id,
+      "**Objective:** " + detail.session.objective,
+      "**Work type:** " + detail.session.taskType,
+      "**Status:** " + detail.session.status,
+      "**Generated:** " + new Date().toISOString(), "",
+      "> This passport records the work and checks performed. Model-generated evaluations are not independent external verification.", "",
+      "## Acceptance criteria",
+      ...(detail.requirements?.length ? detail.requirements.map((item) => "- " + (item.mandatory ? "[MUST] " : "[SHOULD] ") + item.description) : ["- No explicit acceptance criteria were supplied."]), "",
+      "## Constraints",
+      ...(detail.constraints?.length ? detail.constraints.map((item) => "- " + item.description) : ["- No additional constraints supplied."]), "",
+      "## Candidate artifacts",
+      ...(artifacts.length ? artifacts.map((item) => "- **" + item.created_by + " · v" + item.version + "** — " + item.id + "\n  - SHA-256: " + item.content_hash) : ["- No artifacts were recorded."]), "",
+      "## Comparative assessment",
+      evaluation ? evaluation.rationale : "No comparative assessment was recorded.",
+      ...(evaluation?.strengths?.length ? ["", "### Strengths", ...evaluation.strengths.map((item) => "- " + item)] : []),
+      ...(evaluation?.risks?.length ? ["", "### Risks", ...evaluation.risks.map((item) => "- " + item)] : []), "",
+      "## Final criteria review",
+      finalReview?.assessment || "No final criteria review was recorded.",
+      ...(finalReview?.criteriaCoverage?.length ? ["", "### Criteria coverage", ...finalReview.criteriaCoverage.map((item) => "- " + (typeof item === "string" ? item : JSON.stringify(item)))] : []),
+      ...(finalReview?.remainingRisks?.length ? ["", "### Remaining risks", ...finalReview.remainingRisks.map((item) => "- " + item)] : []),
+      ...(finalReview?.unverifiedClaims?.length ? ["", "### Unverified claims", ...finalReview.unverifiedClaims.map((item) => "- " + item)] : []), "",
+      "## Immutable artifact references",
+      ...artifacts.map((item) => "- " + item.id + ": " + item.content_hash), "",
+      "## Event ledger",
+      ...events.map((event) => "- " + new Date(event.occurred_at).toISOString() + " — " + event.event_type), "",
+      "## Verification boundary",
+      "- AI-generated comparative and final reviews are model assessments.",
+      "- No external verification, test execution or fact-checking is claimed unless a corresponding evidence record exists.",
+      "- This report is a private export generated for the session owner."
+    ].join("\n");
+    downloadText("outperform-evidence-passport-" + detail.session.id.slice(0, 8) + ".md", report);
+  }
+
+  const visibleSessions = sessions.filter((session) => {
+    const search = sessionSearch.trim().toLowerCase();
+    const matchesSearch = !search || (session.objective + " " + session.task_type + " " + session.id).toLowerCase().includes(search);
+    const matchesStatus = statusFilter === "ALL" || session.status === statusFilter;
+    const matchesTask = taskFilter === "ALL" || session.task_type === taskFilter;
+    return matchesSearch && matchesStatus && matchesTask;
+  });
+  const completedCount = sessions.filter((item) => item.status === "COMPLETED").length;
+  const reviewCount = sessions.filter((item) => item.status === "AWAITING_APPROVAL").length;
+  const activeCount = sessions.filter((item) => ["UNDERSTANDING","BASELINING","EXECUTING","CHALLENGING","EVALUATING","IMPROVING","VERIFYING"].includes(item.status)).length;
 
   async function decideSession(decision) {
     if (!selected?.session?.id) return;
