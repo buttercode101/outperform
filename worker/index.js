@@ -112,14 +112,16 @@ async function createWorkSession(request, env, user) {
 async function handleApi(request, env) {
   const url = new URL(request.url);
   if (url.pathname === "/api/health" && request.method === "GET") {
-    const dailyUsageTable = env.DB ? await env.DB.prepare(
-      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'user_daily_usage'"
-    ).first().catch(() => null) : null;
+    const [dailyUsageTable, userPlaybooksTable] = env.DB ? await Promise.all([
+      env.DB.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'user_daily_usage'").first().catch(() => null),
+      env.DB.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'user_playbooks'").first().catch(() => null)
+    ]) : [null, null];
     return json({
       ok: true,
       service: "outperform-api",
       database: Boolean(env.DB),
       dailyUsageConfigured: Boolean(dailyUsageTable),
+      userPlaybooksConfigured: Boolean(userPlaybooksTable),
       artifactStorage: Boolean(env.ARTIFACTS),
       durableWorkflow: Boolean(env.OUTPERFORM_WORKFLOW),
       authenticationConfigured: Boolean(env.BETTER_AUTH_SECRET),
