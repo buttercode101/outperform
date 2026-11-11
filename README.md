@@ -10,10 +10,12 @@ OUTPERFORM is designed to improve real work—not merely compare model answers. 
 
 The deployed product is evolving from a generic improvement workflow into a cross-tool improvement and proof platform. See [Product Strategy v2](docs/PRODUCT_STRATEGY_V2.md) for the product direction and competitive differentiation.
 
-- Guest-first workspace with local briefs, starter playbooks, Markdown export and explicit opt-in guest-to-account import.
+- Guest-first workspace with local brief creation/edit/delete, text-file import, Markdown export and explicit opt-in guest-to-account import.
+- Free account fair-use allowance: 10 AI workflow starts per UTC day; saving/importing briefs does not consume an AI run. Each run is bounded to five model calls.
 - Authenticated workspace with session search/filtering, workflow metrics, task-specific playbooks and performance view.
 - Candidate artifact library with side-by-side comparison, SHA-256 fingerprints, artifact downloads and private Evidence Passport export.
 - Deterministic artifact quality gate (content presence, substance threshold, placeholder scan, repeated headings and unsupported verification-language scan) recorded as evidence records.
+- Per-stage OpenRouter usage events with generation IDs, model, tokens and provider-reported cost where supplied.
 - Owner-scoped work sessions and context storage.
 - Durable Cloudflare Workflow for primary execution, independent challenge, comparative adjudication, a final improvement pass and a separate criteria review.
 - Versioned Markdown artifacts stored in R2, with content hashes.
