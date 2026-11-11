@@ -306,6 +306,11 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       remainingToolCalls: JSON.parse(session.budget_json).maxToolCalls ?? 0
     });
 
+    await step.do("record-challenge-plan", async () => {
+      await recordEvent(this.env.DB, sessionId, "CHALLENGE_PLAN_SELECTED", plan);
+      return plan;
+    });
+
     let challengerArtifact = null;
     let challengerContent = null;
     if (plan.strategy !== "NO_CHALLENGE") {
