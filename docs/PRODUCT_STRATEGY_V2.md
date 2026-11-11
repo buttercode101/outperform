@@ -30,7 +30,7 @@ The differentiated product is a **portable, independent improvement and proof la
 
 1. **Work intake:** paste, upload or import work from an existing tool. Keep the original immutable.
 2. **Intent and acceptance contract:** turn the request into explicit goals, constraints, risk and measurable criteria. Let the user correct the contract before expensive execution.
-3. **Competing improvement:** generate a primary solution and a genuinely independent alternative using provider/model diversity where available.
+3. **Competing improvement:** generate a primary solution and a genuinely independent alternative using a different model/provider where configured. The production default uses DeepSeek V4 Flash for the primary and Qwen3.5 Flash for the challenger; this is model diversity, not proof of independence from shared training data.
 4. **Adversarial challenge:** test the preferred candidate against counterexamples, failure modes, contradictions, omissions and edge cases.
 5. **Task-specific verification:** execute deterministic checks when tools are connected; use structured human checks when they are not. Never label an LLM judge as an external verifier.
 6. **Regression protection:** compare the candidate to the original and ensure improvements do not silently violate preserved requirements.
