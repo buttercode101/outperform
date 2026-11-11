@@ -58,6 +58,7 @@ The differentiated product is a **portable, independent improvement and proof la
 - Repository and document connectors.
 - Custom evaluation suites and recurring regression runs.
 - Team strategy library and organization-specific rules.
+- Private reusable playbooks with custom objectives, requirements and constraints.
 - Audit exports and retention controls.
 
 Paid plans, usage caps and model budgets require explicit product/pricing decisions; do not silently charge users or promise unlimited third-party inference.
