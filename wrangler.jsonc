@@ -12,7 +12,8 @@
   "vars": {
     "OPENROUTER_MODEL": "deepseek/deepseek-v4-flash",
     "OPENROUTER_CHALLENGER_MODEL": "qwen/qwen3.5-flash-02-23",
-    "MAX_DAILY_AI_RUNS": "10"
+    "MAX_DAILY_AI_RUNS": "10",
+    "BETTER_AUTH_URL": "https://outperform.buttercoder-dev.workers.dev"
   },
   "d1_databases": [
     {
