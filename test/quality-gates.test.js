@@ -34,3 +34,32 @@ test("handles non-string input safely", () => {
   const result = inspectArtifact(null);
   assert.equal(result.summary.outcome, "FAILED_CHECKS");
 });
+
+
+test("code playbook flags selected high-risk code patterns", () => {
+  const result = inspectArtifact("# Review\n\nThis output contains enough explanatory words for the gate to inspect a potentially risky code example: eval(userInput). The pattern requires context-aware security review.", { taskType: "CODE" });
+  assert.equal(result.checks.find((item) => item.id === "code_risk_patterns").status, "FLAG");
+});
+
+test("research playbook flags missing source links without claiming link validation", () => {
+  const result = inspectArtifact("# Research\n\nThis is a sufficiently detailed research summary with claims, reasoning and conclusions but no traceable source URLs in the output.", { taskType: "RESEARCH" });
+  assert.equal(result.checks.find((item) => item.id === "research_source_links").status, "FLAG");
+});
+
+test("research playbook detects source links but does not claim they were checked", () => {
+  const result = inspectArtifact("# Research\n\nThe source supports this discussion. [Primary source](https://example.com/report). Additional context and analysis follow in this section.", { taskType: "RESEARCH" });
+  const check = result.checks.find((item) => item.id === "research_source_links");
+  assert.equal(check.status, "PASS");
+  assert.match(check.detail, /have not been checked/);
+});
+
+test("business playbook flags quantified claims without an obvious basis", () => {
+  const result = inspectArtifact("# Forecast\n\nRevenue will reach R 500000 in the first quarter and grow 25% in the next quarter. The plan is to scale quickly.", { taskType: "BUSINESS" });
+  assert.equal(result.checks.find((item) => item.id === "business_claim_basis").status, "FLAG");
+});
+
+test("document playbook flags long unstructured output", () => {
+  const content = "A long document paragraph ".repeat(12);
+  const result = inspectArtifact(content, { taskType: "DOCUMENT" });
+  assert.equal(result.checks.find((item) => item.id === "document_structure").status, "FLAG");
+});
