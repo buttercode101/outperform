@@ -148,7 +148,7 @@ async function handleApi(request, env) {
           "SELECT runs_started FROM user_daily_usage WHERE user_id = ? AND usage_date = ?"
         ).bind(user.id, usageDate).first(),
         env.DB.prepare(
-          "SELECT COUNT(*) AS model_calls, COALESCE(SUM(CAST(json_extract(e.payload_json, '$.totalTokens') AS INTEGER)), 0) AS total_tokens, COALESCE(SUM(CAST(json_extract(e.payload_json, '$.costCredits') AS REAL)), 0) AS cost_credits FROM session_events e INNER JOIN work_sessions s ON s.id = e.session_id WHERE s.owner_id = ? AND e.event_type = 'MODEL_USAGE_RECORDED' AND date(e.occurred_at) = ?"
+          "SELECT COUNT(*) AS model_calls, COALESCE(SUM(CAST(json_extract(e.payload_json, '$.totalTokens') AS INTEGER)), 0) AS total_tokens, COALESCE(SUM(CAST(json_extract(e.payload_json, '$.costCredits') AS REAL)), 0) AS cost_credits, COUNT(json_extract(e.payload_json, '$.costCredits')) AS cost_records FROM session_events e INNER JOIN work_sessions s ON s.id = e.session_id WHERE s.owner_id = ? AND e.event_type = 'MODEL_USAGE_RECORDED' AND date(e.occurred_at) = ?"
         ).bind(user.id, usageDate).first()
       ]);
       const runsStarted = usage?.runs_started ?? 0;
@@ -157,6 +157,7 @@ async function handleApi(request, env) {
         modelCalls: modelUsage?.model_calls ?? 0,
         totalTokens: modelUsage?.total_tokens ?? 0,
         costCredits: modelUsage?.cost_credits ?? 0,
+        costRecords: modelUsage?.cost_records ?? 0,
         resetTimezone: "UTC"
       });
     }
