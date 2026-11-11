@@ -17,7 +17,7 @@ The deployed product is evolving from a generic improvement workflow into a cros
 - Deterministic artifact quality gate (content presence, substance threshold, placeholder scan, repeated headings and unsupported verification-language scan) recorded as evidence records.
 - Per-stage OpenRouter usage events with generation IDs, model, tokens and provider-reported cost where supplied.
 - Owner-scoped work sessions and context storage.
-- Durable Cloudflare Workflow for primary execution, independent challenge, comparative adjudication, a final improvement pass and a separate criteria review.
+- Durable Cloudflare Workflow with a DeepSeek primary model, a distinct Qwen challenger model, comparative adjudication, a final improvement pass and a separate criteria review.
 - Versioned Markdown artifacts stored in R2, with content hashes.
 - D1 event history, requirements, approval and evidence tables.
 - Explicit human approve/reject decisions, recorded against the session.
