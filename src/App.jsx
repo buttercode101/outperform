@@ -300,9 +300,29 @@ export default function App() {
       if (!response.ok) throw new Error(data.message || "Could not save playbook.");
       setSavedPlaybooks((current) => [data.playbook, ...current]);
       setPlaybookNotice("Saved to your private playbook library.");
+      setNotice("Saved to your private playbook library.");
     } catch (e) {
       setPlaybookNotice(e.message);
     }
+  }
+
+  async function saveCurrentPlaybook() {
+    if (!objective.trim()) {
+      setNotice("Add an objective before saving a reusable playbook.");
+      return;
+    }
+    const suggestedName = taskType.toLowerCase().replaceAll("_", " ") + " playbook";
+    const name = window.prompt("Name this reusable playbook:", suggestedName);
+    if (!name?.trim()) return;
+    await savePlaybook({
+      name: name.trim(),
+      type: taskType,
+      desc: "Custom playbook saved from a work brief.",
+      objective,
+      criteria: requirementsText.split("\n").map((item) => item.trim()).filter(Boolean),
+      constraints: constraintsText.split("\n").map((item) => item.trim()).filter(Boolean)
+    });
+    setNotice("Your custom playbook has been saved to your private library.");
   }
 
   function usePlaybook(playbook) {
@@ -742,7 +762,7 @@ export default function App() {
             <label htmlFor="constraints">What must it avoid or respect? <span>Optional · One per line</span></label><textarea id="constraints" value={constraintsText} onChange={(e) => setConstraintsText(e.target.value)} placeholder={"Do not change the public API\nKeep within the existing budget"} rows={2} />
             <label htmlFor="context">Existing work and background <span>Optional · paste or import a text file up to 100 KB</span></label><input className="file-input" type="file" accept=".txt,.md,.markdown,.json,.csv,.html,.xml,.yaml,.yml" aria-label="Import a text file" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; if (file.size > 100000) { setNotice("This file is larger than 100 KB. Paste a smaller excerpt instead."); e.target.value = ""; return; } try { setContext(await file.text()); setNotice("Loaded " + file.name + " into the work brief."); } catch { setNotice("Could not read that file. Try a plain-text, Markdown, JSON or CSV file."); } e.target.value = ""; }} /><textarea id="context" value={context} onChange={(e) => setContext(e.target.value)} placeholder="Paste an existing draft, code, research, files or relevant background." rows={5} />
             {notice && <p className="notice" role="alert">{notice}</p>}
-            <div className="composer-actions"><button type="button" className="secondary-button" onClick={() => setShowComposer(false)}>Cancel</button><button type="submit" className="primary-button" disabled={busy || !objective.trim()}>{busy ? "Creating…" : "Create and run"} <Icon name="arrow" /></button></div>
+            <div className="composer-actions"><button type="button" className="secondary-button" onClick={() => setShowComposer(false)}>Cancel</button><button type="button" className="secondary-button" disabled={!objective.trim()} onClick={saveCurrentPlaybook}>Save as playbook</button><button type="submit" className="primary-button" disabled={busy || !objective.trim()}>{busy ? "Creating…" : "Create and run"} <Icon name="arrow" /></button></div>
           </form>
           <p className="composer-note">Your original work will be preserved. AI evaluation is not the same as independent verification. {usage && "Daily fair-use allowance: " + usage.remaining + " of " + usage.dailyLimit + " AI runs remaining (UTC)."}</p>
         </section>
