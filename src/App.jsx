@@ -307,7 +307,7 @@ export default function App() {
   }
 
   if (authPending) return <div className="boot-screen"><Mark /><span>Loading your workspace…</span></div>;
-  if (!authSession?.user) return <GuestWorkspace onSignIn={() => { window.location.href = "/?account=1"; }} />;
+  if (!authSession?.user) return new URLSearchParams(window.location.search).has("account") ? <AuthScreen /> : <GuestWorkspace onSignIn={() => { window.location.href = "/?account=1"; }} />;
 
   return (
     <div className="app-shell">
