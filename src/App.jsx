@@ -213,6 +213,8 @@ export default function App() {
   const [health, setHealth] = useState("checking");
   const [sessions, setSessions] = useState([]);
   const [usage, setUsage] = useState(null);
+  const [savedPlaybooks, setSavedPlaybooks] = useState([]);
+  const [playbookNotice, setPlaybookNotice] = useState("");
   const [guestBriefs, setGuestBriefs] = useState(() => {
     try {
       const stored = JSON.parse(localStorage.getItem("outperform_guest_work") || "[]");
@@ -245,6 +247,53 @@ export default function App() {
   const [activeView, setActiveView] = useState("overview");
   const [detailLoading, setDetailLoading] = useState(false);
 
+
+
+  async function savePlaybook(playbook) {
+    try {
+      const response = await fetch("/api/playbooks", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: playbook.name,
+          taskType: playbook.type,
+          description: playbook.desc || "",
+          objectiveTemplate: playbook.objective,
+          requirements: playbook.criteria || [],
+          constraints: playbook.constraints || []
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Could not save playbook.");
+      setSavedPlaybooks((current) => [data.playbook, ...current]);
+      setPlaybookNotice("Saved to your private playbook library.");
+    } catch (e) {
+      setPlaybookNotice(e.message);
+    }
+  }
+
+  function usePlaybook(playbook) {
+    setTaskType(playbook.taskType || playbook.type || "OTHER");
+    setObjective(playbook.objectiveTemplate || playbook.objective || "");
+    setRequirementsText((playbook.requirements || playbook.criteria || []).join("\n"));
+    setConstraintsText((playbook.constraints || []).join("\n"));
+    setContext("");
+    setShowComposer(true);
+    setActiveView("overview");
+    setNotice("");
+  }
+
+  async function deleteSavedPlaybook(playbookId) {
+    try {
+      const response = await fetch("/api/playbooks/" + playbookId, { method: "DELETE" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Could not delete playbook.");
+      setSavedPlaybooks((current) => current.filter((item) => item.id !== playbookId));
+      setPlaybookNotice("Playbook deleted from your private library.");
+    } catch (e) {
+      setPlaybookNotice(e.message);
+    }
+  }
 
   async function importGuestBriefs() {
     if (!guestBriefs.length || importBusy) return;
@@ -302,6 +351,7 @@ export default function App() {
     const refresh = () => loadSessions().catch(() => {});
     refresh();
     fetch("/api/usage").then((response) => response.json()).then((data) => { if (active) setUsage(data); }).catch(() => {});
+    fetch("/api/playbooks").then((response) => response.json()).then((data) => { if (active) setSavedPlaybooks(data.playbooks || []); }).catch(() => {});
     const interval = window.setInterval(() => {
       refresh();
       fetch("/api/usage").then((response) => response.json()).then((data) => { if (active) setUsage(data); }).catch(() => {});
