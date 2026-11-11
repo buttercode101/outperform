@@ -5,3 +5,4 @@ BETTER_AUTH_URL=http://localhost:5173
 # OpenRouter credentials are required before running improvement workflows.
 OPENROUTER_API_KEY=
 OPENROUTER_MODEL=
+OPENROUTER_CHALLENGER_MODEL=
