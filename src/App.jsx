@@ -439,6 +439,10 @@ export default function App() {
       ...(detail.requirements?.length ? detail.requirements.map((item) => "- " + (item.mandatory ? "[MUST] " : "[SHOULD] ") + item.description) : ["- No explicit acceptance criteria were supplied."]), "",
       "## Constraints",
       ...(detail.constraints?.length ? detail.constraints.map((item) => "- " + item.description) : ["- No additional constraints supplied."]), "",
+      "## Model usage",
+      ...(events.filter((event) => event.event_type === "MODEL_USAGE_RECORDED").length
+        ? events.filter((event) => event.event_type === "MODEL_USAGE_RECORDED").map((event) => "- " + event.payload.stage + ": " + (event.payload.totalTokens ?? "unknown") + " tokens; " + (event.payload.costCredits ?? "cost unavailable") + " credits; model " + event.payload.model)
+        : ["- No model usage metadata was recorded."]), "",
       "## Candidate artifacts",
       ...(artifacts.length ? artifacts.map((item) => "- **" + item.created_by + " · v" + item.version + "** — " + item.id + "\n  - SHA-256: " + item.content_hash) : ["- No artifacts were recorded."]), "",
       "## Deterministic artifact checks",
@@ -607,6 +611,13 @@ export default function App() {
           {detailLoading ? <p>Loading session evidence…</p> : selected.detail && <>
             <div className="review-meta"><Status value={selected.detail.session.status} /><span>{selected.detail.artifacts.length} candidate artifacts</span></div>
             <div className="verification-note"><Icon name="shield" /> AI-selected candidate · Not independently verified</div>
+            {(() => {
+              const usageEvents = selected.detail.events.filter((event) => event.event_type === "MODEL_USAGE_RECORDED");
+              if (!usageEvents.length) return null;
+              const totalTokens = usageEvents.reduce((sum, event) => sum + (Number(event.payload?.totalTokens) || 0), 0);
+              const totalCost = usageEvents.reduce((sum, event) => sum + (Number(event.payload?.costCredits) || 0), 0);
+              return <section className="model-usage-panel"><div><span className="section-kicker">INFERENCE ACCOUNTING</span><h3>Run cost and usage</h3></div><div className="model-usage-totals"><strong>{totalTokens.toLocaleString()} <small>tokens</small></strong><strong>{totalCost ? totalCost.toFixed(5) : "—"} <small>credits</small></strong><strong>{usageEvents.length} <small>model calls</small></strong></div><ul>{usageEvents.map((event, index) => <li key={index}><span>{event.payload?.stage}</span><span>{event.payload?.totalTokens ?? "?"} tokens</span><span>{event.payload?.costCredits == null ? "Cost unavailable" : Number(event.payload.costCredits).toFixed(5) + " credits"}</span></li>)}</ul><p>Provider-reported usage. Credits are provider accounting, not a charge to the user.</p></section>;
+            })()}
             {(() => {
               const gate = selected.detail.events.find((event) => event.event_type === "DETERMINISTIC_QUALITY_GATE_COMPLETED")?.payload;
               return gate ? <section className="quality-gate-panel">
