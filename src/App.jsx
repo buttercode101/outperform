@@ -26,7 +26,7 @@ function Icon({ name }) {
 }
 
 function AuthScreen() {
-  const [mode, setMode] = useState("signin");
+  const [mode, setMode] = useState(new URLSearchParams(window.location.search).get("mode") === "signup" ? "signup" : "signin");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -307,7 +307,7 @@ export default function App() {
   }
 
   if (authPending) return <div className="boot-screen"><Mark /><span>Loading your workspace…</span></div>;
-  if (!authSession?.user) return new URLSearchParams(window.location.search).has("account") ? <AuthScreen /> : <GuestWorkspace onSignIn={() => { window.location.href = "/?account=1"; }} />;
+  if (!authSession?.user) return new URLSearchParams(window.location.search).has("account") ? <AuthScreen /> : <GuestWorkspace onSignIn={() => { window.location.href = "/?account=1&mode=signup"; }} />;
 
   return (
     <div className="app-shell">
