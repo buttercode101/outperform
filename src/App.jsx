@@ -284,6 +284,7 @@ export default function App() {
   }
 
   async function deleteSavedPlaybook(playbookId) {
+    if (!window.confirm("Delete this saved playbook? This cannot be undone.")) return;
     try {
       const response = await fetch("/api/playbooks/" + playbookId, { method: "DELETE" });
       const data = await response.json();
