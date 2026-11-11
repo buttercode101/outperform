@@ -534,16 +534,16 @@ export default function App() {
 
         {activeView === "overview" && <>
         <section className="hero">
-          <div className="eyebrow"><span className="eyebrow-line" /> THE WORK IMPROVEMENT ENGINE</div>
-          <h1>Good work is a starting point.</h1>
-          <p className="hero-copy">Bring an idea, a draft, a project or finished work. Challenge it, improve it and see exactly what got better.</p>
+          <div className="eyebrow"><span className="eyebrow-line" /> THE WORK IMPROVEMENT & PROOF ENGINE</div>
+          <h1>Don’t trust the first answer. Challenge it.</h1>
+          <p className="hero-copy">Bring real work from any tool. OUTPERFORM preserves the original, creates competing improvements with different models, stress-tests the strongest result and records exactly what was checked, what remains uncertain and what needs your decision.</p>
           <button className="primary-button" onClick={() => { setShowComposer(true); setNotice(""); }}><Icon name="plus" /> Start with your work <Icon name="arrow" /></button>
         </section>
 
         <section className="principles">
           <article className="principle"><div className="principle-icon"><Icon name="layers" /></div><div><h3>Start anywhere</h3><p>From a rough idea to a finished deliverable. Your context and constraints come first.</p></div></article>
           <article className="principle"><div className="principle-icon"><Icon name="activity" /></div><div><h3>Challenge the result</h3><p>Independent alternatives and targeted challenges expose what a first pass can miss.</p></div></article>
-          <article className="principle"><div className="principle-icon"><Icon name="shield" /></div><div><h3>Prove the difference</h3><p>Keep the original. Verify changes. See evidence, regressions and remaining risks.</p></div></article>
+          <article className="principle"><div className="principle-icon"><Icon name="shield" /></div><div><h3>Inspect the proof</h3><p>Keep the original. Compare every version. See what passed, what failed and what still needs a real-world check.</p></div></article>
         </section>
 
         <section className="metrics-strip" aria-label="Workspace metrics">
@@ -571,7 +571,7 @@ export default function App() {
         </section>
         </>}
         {activeView === "playbooks" && <section className="feature-page">
-          <div className="hero feature-hero"><div className="eyebrow"><span className="eyebrow-line" /> OUTPERFORM METHODS</div><h1>Start with a proven approach.</h1><p className="hero-copy">Playbooks turn a vague request into a disciplined improvement brief. Each one gives the engine a sharper objective and measurable acceptance criteria.</p></div>
+          <div className="hero feature-hero"><div className="eyebrow"><span className="eyebrow-line" /> OUTPERFORM METHODS</div><h1>Start with a sharper approach.</h1><p className="hero-copy">Playbooks turn a vague request into a disciplined improvement brief. Each one gives the engine a sharper objective and measurable acceptance criteria.</p></div>
           <div className="playbook-grid">
             {[
               {type:"CODE",name:"Engineering hardening",tag:"SOFTWARE",desc:"Improve an existing feature or codebase without breaking what already works.",objective:"Improve this software deliverable while preserving existing behaviour, security boundaries and maintainability.",criteria:["Identify the current behaviour and preserve working functionality","Find correctness, security, performance and accessibility risks","Propose concrete changes with rationale and trade-offs","Define tests that would demonstrate correctness","List all claims that still require execution or human verification"]},
