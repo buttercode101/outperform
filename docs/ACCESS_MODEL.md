@@ -6,6 +6,8 @@ OUTPERFORM must demonstrate value before asking for registration. The public ent
 
 - Open the product and build a structured work brief.
 - Add an objective, work type, success criteria and background/context.
+- Import a text-based file up to 100 KB (TXT, Markdown, JSON, CSV, HTML, XML or YAML) into the local brief.
+- Edit, delete and export local briefs.
 - Save briefs in browser-local storage on the current device.
 - Export a brief as Markdown for use elsewhere.
 - No brief content is sent to the server in guest mode.
