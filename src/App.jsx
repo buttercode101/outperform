@@ -105,7 +105,7 @@ function GuestWorkspace({ onSignIn }) {
     const item = {
       id: crypto.randomUUID(), taskType, objective: objective.trim(),
       context: context.trim(),
-      requirements: requirements.split("\\n").map(x => x.trim()).filter(Boolean),
+      requirements: requirements.split("\n").map(x => x.trim()).filter(Boolean),
       createdAt: new Date().toISOString()
     };
     setItems(current => [item, ...current]);
@@ -122,7 +122,7 @@ function GuestWorkspace({ onSignIn }) {
       "## Existing work and context", item.context || "No additional context supplied.", "",
       "## Next steps", "- Establish the baseline and preserve the original.", "- Identify assumptions, risks and missing information.", "- Produce an improved candidate.", "- Verify each success criterion with evidence.", "",
       "_Guest workspace export. AI execution, durable workflow, cloud history and review are available after creating a free account._"
-    ].join("\\n");
+    ].join("\n");
     const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
