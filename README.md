@@ -14,7 +14,7 @@ The deployed product is evolving from a generic improvement workflow into a cros
 - Free account fair-use allowance: 10 AI workflow starts per UTC day; saving/importing briefs does not consume an AI run. Each run is bounded to five model calls.
 - Authenticated workspace with session search/filtering, workflow metrics, task-specific playbooks and performance view.
 - Candidate artifact library with side-by-side comparison, SHA-256 fingerprints, artifact downloads and private Evidence Passport export.
-- Deterministic artifact quality gate (content presence, substance threshold, placeholder scan, repeated headings and unsupported verification-language scan) recorded as evidence records.
+- Deterministic artifact quality gate with task-specific checks for selected code-risk patterns, research source-link presence, document structure and quantified business claims; results are recorded as evidence records and clearly labeled as limited checks.
 - Per-stage OpenRouter usage events with generation IDs, model, tokens and provider-reported cost where supplied.
 - Owner-scoped work sessions and context storage.
 - Durable Cloudflare Workflow with a DeepSeek primary model, a distinct Qwen challenger model, comparative adjudication, a final improvement pass and a separate criteria review.
