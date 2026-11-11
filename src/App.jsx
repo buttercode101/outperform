@@ -218,6 +218,7 @@ export default function App() {
       return Array.isArray(stored) ? stored : [];
     } catch { return []; }
   });
+  const [guestImportDismissed, setGuestImportDismissed] = useState(false);
   const [importBusy, setImportBusy] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
   const [taskType, setTaskType] = useState("CODE");
@@ -528,7 +529,7 @@ export default function App() {
           <div className="topbar-right"><span className="private-label"><Icon name="shield" /> Private workspace</span><span className="user-email">{authSession.user.email}</span><button className="signout-button" onClick={() => authClient.signOut()}>Sign out</button><div className="avatar">{(authSession.user.name || "O").slice(0,1).toUpperCase()}</div></div>
         </header>
 
-        {guestBriefs.length > 0 && <section className="guest-import-banner"><div><span className="section-kicker">LOCAL WORK FOUND</span><strong>{guestBriefs.length} guest brief{guestBriefs.length === 1 ? "" : "s"} available to import</strong><p>Bring your saved device-only briefs into this private workspace. Import creates saved sessions only; it does not run AI or upload anything until you choose.</p></div><div><button className="secondary-button" disabled={importBusy} onClick={() => { setGuestBriefs([]); localStorage.removeItem("outperform_guest_work"); }}>Keep on this device</button><button className="primary-button" disabled={importBusy} onClick={importGuestBriefs}>{importBusy ? "Importing…" : "Import briefs"} <Icon name="arrow" /></button></div></section>}
+        {guestBriefs.length > 0 && !guestImportDismissed && <section className="guest-import-banner"><div><span className="section-kicker">LOCAL WORK FOUND</span><strong>{guestBriefs.length} guest brief{guestBriefs.length === 1 ? "" : "s"} available to import</strong><p>Bring your saved device-only briefs into this private workspace. Import creates saved sessions only; it does not run AI or upload anything until you choose.</p></div><div><button className="secondary-button" disabled={importBusy} onClick={() => setGuestImportDismissed(true)}>Keep on this device</button><button className="primary-button" disabled={importBusy} onClick={importGuestBriefs}>{importBusy ? "Importing…" : "Import briefs"} <Icon name="arrow" /></button></div></section>}
 
         {activeView === "overview" && <>
         <section className="hero">
