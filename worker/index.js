@@ -226,10 +226,11 @@ async function handleApi(request, env) {
       try { body = JSON.parse(raw); } catch { return error("INVALID_JSON", "Provide a valid playbook.", 400); }
       if (!body || typeof body !== "object" || Array.isArray(body)) return error("INVALID_PLAYBOOK", "Provide a playbook object.", 400);
       const allowedTypes = new Set(["CODE","RESEARCH","DOCUMENT","BUSINESS","CREATIVE","OTHER"]);
-      const name = typeof body.name === "string" ? body.name.trim().slice(0, 80) : "";
+      const name = typeof body.name === "string" ? body.name.trim() : "";
       const taskType = typeof body.taskType === "string" ? body.taskType.toUpperCase() : "";
-      const description = typeof body.description === "string" ? body.description.trim().slice(0, 500) : "";
-      const objectiveTemplate = typeof body.objectiveTemplate === "string" ? body.objectiveTemplate.trim().slice(0, 3000) : "";
+      const description = typeof body.description === "string" ? body.description.trim() : "";
+      const objectiveTemplate = typeof body.objectiveTemplate === "string" ? body.objectiveTemplate.trim() : "";
+      if (name.length > 80 || description.length > 500 || objectiveTemplate.length > 3000) return error("INVALID_PLAYBOOK", "Playbook name, description or objective exceeds its allowed length.", 400);
       if (body.requirements !== undefined && (!Array.isArray(body.requirements) || body.requirements.length > 20)) return error("INVALID_PLAYBOOK", "A playbook can contain no more than 20 acceptance criteria.", 400);
       if (body.constraints !== undefined && (!Array.isArray(body.constraints) || body.constraints.length > 20)) return error("INVALID_PLAYBOOK", "A playbook can contain no more than 20 constraints.", 400);
       if ((body.requirements || []).some((item) => typeof item !== "string" || item.trim().length > 500)) return error("INVALID_PLAYBOOK", "Each acceptance criterion must be text no longer than 500 characters.", 400);
