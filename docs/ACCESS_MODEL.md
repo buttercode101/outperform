@@ -24,6 +24,7 @@ An account is required only when a user chooses a feature that needs identity, s
 - Store sessions and artifacts in the cloud.
 - Review results and record approval/rejection.
 - Access the same workspace across devices.
+- Save and reuse private playbooks with custom objectives, requirements and constraints.
 
 Registration is free. A user should never be redirected to registration merely to view the public product or create/export a local brief. Explain the value of account-only capabilities at the point the user chooses them.
 
