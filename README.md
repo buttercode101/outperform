@@ -21,6 +21,7 @@ The deployed product is evolving from a generic improvement workflow into a cros
 - Immutable baseline and versioned candidate artifacts stored in R2, linked by parent-artifact lineage and content hashes.
 - Explicit SHA-256 recomputation for any artifact, recorded as a verifiable evidence event.
 - User-owned reusable playbooks stored in D1 and scoped to the authenticated account.
+- Explicit account deletion with cleanup of session records, playbooks, usage counters and stored R2 objects.
 - D1 event history, requirements, approval and evidence tables.
 - Explicit human approve/reject decisions, recorded against the session.
 - User requirements and constraints are persisted and passed to every model stage.
