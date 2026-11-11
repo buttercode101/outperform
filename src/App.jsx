@@ -66,6 +66,7 @@ function AuthScreen() {
           <button className="primary-button auth-submit" disabled={busy}>{busy ? "Please wait…" : mode === "signup" ? "Create account" : "Sign in"} <Icon name="arrow" /></button>
         </form>
         <p className="auth-switch">{mode === "signup" ? "Already have an account?" : "New to OUTPERFORM?"} <button onClick={() => { setMode(mode === "signup" ? "signin" : "signup"); setError(""); }}>{mode === "signup" ? "Sign in" : "Create an account"}</button></p>
+        <p className="auth-switch"><button onClick={() => window.location.replace("/")}>Continue without an account</button></p>
         <p className="auth-footnote">Private by default. Your work is not published or shared.</p>
       </section>
     </main>
