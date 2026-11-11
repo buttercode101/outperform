@@ -26,7 +26,7 @@ async function setStatus(db, sessionId, status, bestArtifactId = undefined) {
   }
 }
 
-async function callModel(env, { sessionId, stage, system, prompt, temperature = 0.4, maxTokens = 3500 }) {
+async function callModel(env, { sessionId, stage, model = env.OPENROUTER_MODEL, system, prompt, temperature = 0.4, maxTokens = 3500 }) {
   if (!env.OPENROUTER_API_KEY || !env.OPENROUTER_MODEL) {
     const error = new Error("Model provider is not configured. Set OPENROUTER_API_KEY and OPENROUTER_MODEL before starting sessions.");
     error.code = "PROVIDER_NOT_CONFIGURED";
@@ -41,7 +41,7 @@ async function callModel(env, { sessionId, stage, system, prompt, temperature = 
       "X-Title": "OUTPERFORM"
     },
     body: JSON.stringify({
-      model: env.OPENROUTER_MODEL,
+      model,
       temperature,
       max_tokens: maxTokens,
       messages: [
@@ -77,7 +77,7 @@ async function callModel(env, { sessionId, stage, system, prompt, temperature = 
       "MODEL_USAGE_RECORDED",
       JSON.stringify({
         stage,
-        model: payload.model || env.OPENROUTER_MODEL,
+        model: payload.model || model,
         generationId: payload.id || null,
         promptTokens,
         completionTokens,
@@ -265,6 +265,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         { retries: { limit: 2, delay: "3 seconds", backoff: "exponential" } },
         async () => callModel(this.env, {
           sessionId, stage: "CHALLENGER",
+          model: this.env.OPENROUTER_CHALLENGER_MODEL || this.env.OPENROUTER_MODEL,
           system: "You are an independent rival solution engine. You have not seen the primary answer. Do not imitate it. Solve the user's task independently and aim to outperform a strong competing system. Do not claim verification you did not perform.",
           prompt: `TASK TYPE: ${session.task_type}\nOBJECTIVE: ${session.objective}\nCONTEXT AND EXISTING WORK:\n${contextObject || "(No additional context supplied)"}\n\n${criteriaText}\n\nProduce a complete independent alternative. Surface assumptions and uncertainty.`,
           temperature: 0.65
