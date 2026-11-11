@@ -51,7 +51,7 @@ async function callModel(env, { sessionId, stage, model = env.OPENROUTER_MODEL, 
     headers: {
       "Authorization": `Bearer ${env.OPENROUTER_API_KEY}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": env.BETTER_AUTH_URL || "https://outperform.work",
+      "HTTP-Referer": env.BETTER_AUTH_URL || "https://outperform.buttercoder-dev.workers.dev",
       "X-Title": "OUTPERFORM"
     },
     body: JSON.stringify({
