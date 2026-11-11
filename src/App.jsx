@@ -420,10 +420,10 @@ export default function App() {
         <a className="brand" href="/" aria-label="OUTPERFORM home"><Mark /><span>OUTPERFORM</span></a>
         <div className="workspace-label">WORKSPACE</div>
         <nav className="nav-list" aria-label="Main navigation">
-          <button className="nav-item active" type="button"><Icon name="layers" /> Overview</button>
+          <button className={"nav-item " + (activeView === "overview" ? "active" : "")} type="button" onClick={() => setActiveView("overview")}><Icon name="layers" /> Overview</button>
           <button className="nav-item" type="button" onClick={() => { setShowComposer(true); setNotice(""); }}><Icon name="plus" /> New session</button>
-          <button className="nav-item" type="button" disabled><Icon name="activity" /> Experiments <span className="nav-soon">SOON</span></button>
-          <button className="nav-item" type="button" disabled><Icon name="book" /> Strategy library <span className="nav-soon">SOON</span></button>
+          <button className={"nav-item " + (activeView === "playbooks" ? "active" : "")} type="button" onClick={() => setActiveView("playbooks")}><Icon name="book" /> Playbooks</button>
+          <button className={"nav-item " + (activeView === "insights" ? "active" : "")} type="button" onClick={() => setActiveView("insights")}><Icon name="activity" /> Performance</button>
         </nav>
         <div className="sidebar-bottom">
           <div className="sidebar-status"><span className={health === "ready" ? "status-dot online" : health === "setup" ? "status-dot setup" : "status-dot"} /><span>Engine {health}</span></div>
@@ -433,10 +433,11 @@ export default function App() {
 
       <main className="main-content">
         <header className="topbar">
-          <div className="breadcrumb">Workspace <span>/</span> Overview</div>
+          <div className="breadcrumb">Workspace <span>/</span> {activeView === "overview" ? "Overview" : activeView === "playbooks" ? "Playbooks" : "Performance"}</div>
           <div className="topbar-right"><span className="private-label"><Icon name="shield" /> Private workspace</span><span className="user-email">{authSession.user.email}</span><button className="signout-button" onClick={() => authClient.signOut()}>Sign out</button><div className="avatar">{(authSession.user.name || "O").slice(0,1).toUpperCase()}</div></div>
         </header>
 
+        {activeView === "overview" && <>
         <section className="hero">
           <div className="eyebrow"><span className="eyebrow-line" /> THE WORK IMPROVEMENT ENGINE</div>
           <h1>Good work is a starting point.</h1>
@@ -450,13 +451,22 @@ export default function App() {
           <article className="principle"><div className="principle-icon"><Icon name="shield" /></div><div><h3>Prove the difference</h3><p>Keep the original. Verify changes. See evidence, regressions and remaining risks.</p></div></article>
         </section>
 
+        <section className="metrics-strip" aria-label="Workspace metrics">
+          <article><span>ALL SESSIONS</span><strong>{sessions.length}</strong><small>Work attempted</small></article>
+          <article><span>IN PROGRESS</span><strong>{activeCount}</strong><small>Currently running</small></article>
+          <article><span>READY TO REVIEW</span><strong>{reviewCount}</strong><small>Your decision needed</small></article>
+          <article><span>APPROVED</span><strong>{completedCount}</strong><small>Completed by you</small></article>
+        </section>
         <section className="work-area">
-          <div className="section-heading"><div><span className="section-kicker">YOUR WORK</span><h2>Improvement sessions</h2></div><span className="empty-count">{sessions.length} {sessions.length === 1 ? "session" : "sessions"}</span></div>
+          <div className="section-heading"><div><span className="section-kicker">YOUR WORK</span><h2>Improvement sessions</h2></div><span className="empty-count">{visibleSessions.length} of {sessions.length} shown</span></div>
+          <div className="session-filters"><input aria-label="Search sessions" value={sessionSearch} onChange={(e) => setSessionSearch(e.target.value)} placeholder="Search your work…" /><select aria-label="Filter by status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="ALL">All statuses</option>{["CREATED","UNDERSTANDING","BASELINING","EXECUTING","CHALLENGING","EVALUATING","IMPROVING","VERIFYING","AWAITING_APPROVAL","BLOCKED","COMPLETED","FAILED","CANCELLED"].map((value) => <option key={value} value={value}>{value.replaceAll("_"," ")}</option>)}</select><select aria-label="Filter by work type" value={taskFilter} onChange={(e) => setTaskFilter(e.target.value)}><option value="ALL">All work types</option>{taskTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></div>
           {notice && <p className="notice" role="status">{notice}</p>}
           {sessions.length === 0 ? (
             <div className="empty-state"><div className="empty-symbol"><Mark /></div><h3>Your next breakthrough starts here.</h3><p>There are no sessions yet. Start with something you're working on and give it room to get better.</p><button className="text-button" onClick={() => setShowComposer(true)}>Create your first session <Icon name="arrow" /></button></div>
+          ) : visibleSessions.length === 0 ? (
+            <div className="empty-state compact-empty"><h3>No matching sessions.</h3><p>Try changing the search or filters.</p><button className="text-button" onClick={() => { setSessionSearch(""); setStatusFilter("ALL"); setTaskFilter("ALL"); }}>Clear filters</button></div>
           ) : (
-            <div className="session-list">{sessions.map((session) => (
+            <div className="session-list">{visibleSessions.map((session) => (
               <article className="session-row" key={session.id}>
                 <div className="session-main"><span className="session-type">{session.task_type}</span><h3>{session.objective}</h3><span className="session-date">{new Date(session.updated_at).toLocaleString()}</span></div>
                 <div className="session-actions"><Status value={session.status} />{["CREATED","BLOCKED"].includes(session.status) && <button className="small-action" disabled={busy} onClick={() => startSession(session)}>Run <Icon name="arrow" /></button>}{["AWAITING_APPROVAL","COMPLETED","FAILED","CANCELLED"].includes(session.status) && <button className="small-action" onClick={() => openSession(session)}>Review <Icon name="arrow" /></button>}</div>
@@ -464,6 +474,25 @@ export default function App() {
             ))}</div>
           )}
         </section>
+        </>}
+        {activeView === "playbooks" && <section className="feature-page">
+          <div className="hero feature-hero"><div className="eyebrow"><span className="eyebrow-line" /> OUTPERFORM METHODS</div><h1>Start with a proven approach.</h1><p className="hero-copy">Playbooks turn a vague request into a disciplined improvement brief. Each one gives the engine a sharper objective and measurable acceptance criteria.</p></div>
+          <div className="playbook-grid">
+            {[
+              {type:"CODE",name:"Engineering hardening",tag:"SOFTWARE",desc:"Improve an existing feature or codebase without breaking what already works.",objective:"Improve this software deliverable while preserving existing behaviour, security boundaries and maintainability.",criteria:["Identify the current behaviour and preserve working functionality","Find correctness, security, performance and accessibility risks","Propose concrete changes with rationale and trade-offs","Define tests that would demonstrate correctness","List all claims that still require execution or human verification"]},
+              {type:"RESEARCH",name:"Evidence-led research",tag:"RESEARCH",desc:"Turn a broad question into a defensible, source-aware decision brief.",objective:"Produce a decision-ready research brief with traceable claims, counter-evidence and explicit uncertainty.",criteria:["Separate verified facts, estimates, assumptions and opinions","Identify credible primary sources and publication dates","Test the strongest counterargument","Resolve contradictions between sources","List gaps that prevent a confident decision"]},
+              {type:"DOCUMENT",name:"Document excellence",tag:"WRITING",desc:"Upgrade a document for clarity, completeness, structure and audience impact.",objective:"Improve this document for its intended audience while preserving its meaning and required details.",criteria:["Preserve all material facts, commitments and constraints","Improve structure, clarity and readability","Remove ambiguity, repetition and unsupported claims","Check consistency of names, dates, numbers and terminology","Explain material changes and unresolved ambiguities"]},
+              {type:"BUSINESS",name:"Business decision stress-test",tag:"STRATEGY",desc:"Pressure-test a plan, opportunity or operating decision before committing resources.",objective:"Stress-test this business decision and produce a stronger, evidence-aware action plan.",criteria:["Clarify the decision, objective and assumptions","Identify customer, market, operational and financial risks","Challenge the strongest assumptions with counter-scenarios","Compare realistic alternatives and opportunity costs","Define leading indicators, stop conditions and next actions"]},
+              {type:"CREATIVE",name:"Creative concept challenger",tag:"CREATIVE",desc:"Push a concept beyond the obvious while protecting the brief and audience fit.",objective:"Develop a distinctive creative direction that fulfils the brief and is meaningfully stronger than conventional alternatives.",criteria:["Stay faithful to the audience, brief and constraints","Generate meaningfully different directions","Explain the distinctive idea and intended effect","Identify clichés, weak assumptions and execution risks","Recommend one direction with a practical next-step plan"]}
+            ].map((playbook) => <article className="playbook-card" key={playbook.type}><span className="section-kicker">{playbook.tag}</span><h2>{playbook.name}</h2><p>{playbook.desc}</p><ul>{playbook.criteria.slice(0,3).map((item) => <li key={item}>{item}</li>)}</ul><button className="primary-button" onClick={() => { setTaskType(playbook.type); setObjective(playbook.objective); setRequirementsText(playbook.criteria.join("\n")); setConstraintsText(""); setContext(""); setShowComposer(true); setActiveView("overview"); }}>Use this playbook <Icon name="arrow" /></button></article>)}
+          </div>
+        </section>}
+        {activeView === "insights" && <section className="feature-page">
+          <div className="hero feature-hero"><div className="eyebrow"><span className="eyebrow-line" /> OUTCOME INTELLIGENCE</div><h1>See where the work is moving.</h1><p className="hero-copy">A live view of your improvement activity. These are workflow outcomes—not a claim that model-generated scores equal real-world quality.</p></div>
+          <div className="metrics-strip insights-metrics"><article><span>TOTAL WORK</span><strong>{sessions.length}</strong><small>All recorded sessions</small></article><article><span>APPROVAL RATE</span><strong>{sessions.length ? Math.round(completedCount / sessions.length * 100) + "%" : "—"}</strong><small>Approved / all sessions</small></article><article><span>AWAITING DECISION</span><strong>{reviewCount}</strong><small>Needs your review</small></article><article><span>ACTIVE RUNS</span><strong>{activeCount}</strong><small>Workflow in progress</small></article></div>
+          <section className="insights-panel"><h2>What these numbers mean</h2><p>OUTPERFORM currently measures workflow activity and human decisions. It does not yet measure independently verified task success across external tools. That distinction is deliberate: we will not inflate performance claims with AI-generated scores.</p><div className="insight-note"><strong>Next measurement layer</strong><span>Deterministic checks, reusable evaluation datasets, model/provider cost and latency, regression history, and evidence-backed outcome trends are the next product engineering milestones.</span></div></section>
+          <button className="text-button" onClick={() => setActiveView("overview")}>Back to overview <Icon name="arrow" /></button>
+        </section>}
         <footer className="footer"><span>OUTPERFORM</span><span>Better work. Backed by evidence.</span></footer>
       </main>
 
