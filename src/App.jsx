@@ -213,6 +213,7 @@ export default function App() {
   const [health, setHealth] = useState("checking");
   const [sessions, setSessions] = useState([]);
   const [usage, setUsage] = useState(null);
+  const [accountDeleteBusy, setAccountDeleteBusy] = useState(false);
   const [savedPlaybooks, setSavedPlaybooks] = useState([]);
   const [playbookNotice, setPlaybookNotice] = useState("");
   const [guestBriefs, setGuestBriefs] = useState(() => {
@@ -248,6 +249,29 @@ export default function App() {
   const [detailLoading, setDetailLoading] = useState(false);
 
 
+
+
+  async function deleteAccount() {
+    const confirmation = window.prompt("This permanently deletes your account, sessions, playbooks and stored artifacts. Type DELETE MY ACCOUNT to continue.");
+    if (confirmation !== "DELETE MY ACCOUNT" || accountDeleteBusy) return;
+    setAccountDeleteBusy(true);
+    try {
+      const response = await fetch("/api/account", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ confirmation })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Account deletion failed.");
+      try { await authClient.signOut(); } catch {}
+      window.alert("Your OUTPERFORM account and stored work have been deleted.");
+      window.location.replace("/");
+    } catch (e) {
+      window.alert(e.message);
+    } finally {
+      setAccountDeleteBusy(false);
+    }
+  }
 
   async function savePlaybook(playbook) {
     try {
@@ -617,7 +641,7 @@ export default function App() {
       <main className="main-content">
         <header className="topbar">
           <div className="breadcrumb">Workspace <span>/</span> {activeView === "overview" ? "Overview" : activeView === "playbooks" ? "Playbooks" : "Performance"}</div>
-          <div className="topbar-right"><span className="private-label"><Icon name="shield" /> Private workspace</span><span className="user-email">{authSession.user.email}</span><button className="signout-button" onClick={async () => { await authClient.signOut(); window.location.replace("/"); }}>Sign out</button><div className="avatar">{(authSession.user.name || "O").slice(0,1).toUpperCase()}</div></div>
+          <div className="topbar-right"><span className="private-label"><Icon name="shield" /> Private workspace</span><span className="user-email">{authSession.user.email}</span><button className="delete-account-button" disabled={accountDeleteBusy} onClick={deleteAccount}>{accountDeleteBusy ? "Deleting…" : "Delete account"}</button><button className="signout-button" onClick={async () => { await authClient.signOut(); window.location.replace("/"); }}>Sign out</button><div className="avatar">{(authSession.user.name || "O").slice(0,1).toUpperCase()}</div></div>
         </header>
 
         {guestBriefs.length > 0 && !guestImportDismissed && <section className="guest-import-banner"><div><span className="section-kicker">LOCAL WORK FOUND</span><strong>{guestBriefs.length} guest brief{guestBriefs.length === 1 ? "" : "s"} available to import</strong><p>Bring your saved device-only briefs into this private workspace. Import creates saved sessions only; it does not run AI or upload anything until you choose.</p></div><div><button className="secondary-button" disabled={importBusy} onClick={() => setGuestImportDismissed(true)}>Keep on this device</button><button className="primary-button" disabled={importBusy} onClick={importGuestBriefs}>{importBusy ? "Importing…" : "Import briefs"} <Icon name="arrow" /></button></div></section>}
