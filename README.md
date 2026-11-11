@@ -98,4 +98,4 @@ The regular Quality workflow does not deploy production. Full signed-in end-to-e
 
 ## Product and planning
 
-See [Product Strategy v2](docs/PRODUCT_STRATEGY_V2.md), [Access Model](docs/ACCESS_MODEL.md), `docs/planning/` and `docs/engineering/` for the product direction, requirements, architecture, challenge protocol, verification model, market hypotheses and execution decisions.
+See [Product Strategy v2](docs/PRODUCT_STRATEGY_V2.md), [Access Model](docs/ACCESS_MODEL.md), [Release Readiness](docs/RELEASE_READINESS.md), [Privacy Data Map](docs/PRIVACY_DATA_MAP.md), `docs/planning/` and `docs/engineering/` for the product direction, requirements, architecture, challenge protocol, verification model, market hypotheses and execution decisions.
