@@ -32,7 +32,7 @@ The differentiated product is a **portable, independent improvement and proof la
 2. **Intent and acceptance contract:** turn the request into explicit goals, constraints, risk and measurable criteria. Let the user correct the contract before expensive execution.
 3. **Competing improvement:** generate a primary solution and a genuinely independent alternative using a different model/provider where configured. The production default uses DeepSeek V4 Flash for the primary and Qwen3.5 Flash for the challenger; this is model diversity, not proof of independence from shared training data.
 4. **Adversarial challenge:** test the preferred candidate against counterexamples, failure modes, contradictions, omissions and edge cases.
-5. **Task-specific verification:** execute deterministic checks when tools are connected; use structured human checks when they are not. Never label an LLM judge as an external verifier.
+5. **Task-specific verification:** execute deterministic checks when tools are connected; use structured human checks when they are not. The first release includes narrow code-risk pattern, research-link presence, document-structure and business-claim-basis scans; these are triage signals, not full audits. Never label an LLM judge as an external verifier.
 6. **Regression protection:** compare the candidate to the original and ensure improvements do not silently violate preserved requirements.
 7. **Evidence Passport:** versioned artifacts, hashes, requirement coverage, findings, evidence references, check logs, cost/latency, remaining risks and human decision in one exportable report.
 8. **Learning loop:** with user permission, turn approved corrections and failed checks into reusable playbooks and regression cases.
