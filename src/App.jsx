@@ -82,6 +82,95 @@ function Status({ value }) {
   return <span className={`session-status status-${value?.toLowerCase()}`}><i />{labels[value] || value}</span>;
 }
 
+
+function GuestWorkspace({ onSignIn }) {
+  const [items, setItems] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("outperform_guest_work") || "[]"); }
+    catch { return []; }
+  });
+  const [objective, setObjective] = useState("");
+  const [taskType, setTaskType] = useState("CODE");
+  const [context, setContext] = useState("");
+  const [requirements, setRequirements] = useState("");
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    try { localStorage.setItem("outperform_guest_work", JSON.stringify(items)); }
+    catch { setNotice("This browser could not save locally. Export your brief to keep a copy."); }
+  }, [items]);
+
+  function createBrief(event) {
+    event.preventDefault();
+    if (!objective.trim()) return;
+    const item = {
+      id: crypto.randomUUID(), taskType, objective: objective.trim(),
+      context: context.trim(),
+      requirements: requirements.split("\\n").map(x => x.trim()).filter(Boolean),
+      createdAt: new Date().toISOString()
+    };
+    setItems(current => [item, ...current]);
+    setObjective(""); setContext(""); setRequirements("");
+    setNotice("Your work brief is saved in this browser. Nothing has been uploaded.");
+  }
+
+  function exportBrief(item) {
+    const markdown = [
+      "# OUTPERFORM — Work brief", "",
+      "**Type:** " + item.taskType, "**Created:** " + new Date(item.createdAt).toLocaleString(), "",
+      "## Objective", item.objective, "",
+      "## Success criteria", ...(item.requirements.length ? item.requirements.map(x => "- " + x) : ["- Define measurable success criteria."]), "",
+      "## Existing work and context", item.context || "No additional context supplied.", "",
+      "## Next steps", "- Establish the baseline and preserve the original.", "- Identify assumptions, risks and missing information.", "- Produce an improved candidate.", "- Verify each success criterion with evidence.", "",
+      "_Guest workspace export. AI execution, durable workflow, cloud history and review are available after creating a free account._"
+    ].join("\\n");
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url; link.download = "outperform-work-brief.md"; link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <main className="guest-screen">
+      <header className="guest-header">
+        <a className="brand" href="/"><Mark /><span>OUTPERFORM</span></a>
+        <div className="guest-actions"><span className="guest-label">GUEST MODE · SAVED ON THIS DEVICE</span><button className="secondary-button" onClick={onSignIn}>Sign in / Create account</button></div>
+      </header>
+      <section className="guest-hero">
+        <span className="eyebrow"><span className="eyebrow-line" /> THE WORK IMPROVEMENT ENGINE</span>
+        <h1>Start with the work.<br/>No account required.</h1>
+        <p>Shape an idea, draft or project into a clear work brief. Save it in this browser and export it whenever you like. Create an account only when you want OUTPERFORM to run the AI improvement workflow and keep your work in the cloud.</p>
+      </section>
+      <section className="guest-grid">
+        <form className="guest-composer" onSubmit={createBrief}>
+          <div className="section-heading"><div><span className="section-kicker">FREE · NO SIGN-UP</span><h2>Build a work brief</h2></div></div>
+          <label htmlFor="guest-type">Type of work</label>
+          <select id="guest-type" value={taskType} onChange={e => setTaskType(e.target.value)}>{taskTypes.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
+          <label htmlFor="guest-objective">What are you trying to achieve?</label>
+          <textarea id="guest-objective" rows={3} required value={objective} onChange={e => setObjective(e.target.value)} placeholder="Describe the outcome you want to improve…" />
+          <label htmlFor="guest-requirements">What does success look like? <span>One per line · optional</span></label>
+          <textarea id="guest-requirements" rows={3} value={requirements} onChange={e => setRequirements(e.target.value)} placeholder={"Clear, measurable outcome\nPreserve what already works\nEvidence for important claims"} />
+          <label htmlFor="guest-context">Existing work or context <span>Optional</span></label>
+          <textarea id="guest-context" rows={4} value={context} onChange={e => setContext(e.target.value)} placeholder="Paste notes, a draft, requirements or background…" />
+          {notice && <p className="notice" role="status">{notice}</p>}
+          <button className="primary-button" type="submit" disabled={!objective.trim()}><Icon name="plus" /> Save work brief <Icon name="arrow" /></button>
+          <p className="composer-note">Your brief stays in this browser. It is not sent to OUTPERFORM servers.</p>
+        </form>
+        <section className="guest-library">
+          <div className="section-heading"><div><span className="section-kicker">YOUR DEVICE</span><h2>Saved briefs</h2></div><span className="empty-count">{items.length}</span></div>
+          {items.length === 0 ? <div className="empty-state"><div className="empty-symbol"><Mark /></div><h3>Your work, your starting point.</h3><p>Create a brief. It will be saved locally on this device, without registration.</p></div> :
+            <div className="session-list">{items.map(item => <article className="session-row" key={item.id}><div className="session-main"><span className="session-type">{item.taskType}</span><h3>{item.objective}</h3><span className="session-date">{new Date(item.createdAt).toLocaleString()}</span></div><div className="session-actions"><button className="small-action" onClick={() => exportBrief(item)}>Export <Icon name="arrow" /></button></div></article>)}</div>}
+        </section>
+      </section>
+      <section className="guest-upgrade">
+        <div><span className="section-kicker">WHEN YOU NEED MORE</span><h2>Keep going with an account.</h2><p>Free account registration unlocks cloud-saved sessions, the AI execution and challenge workflow, candidate comparisons, final reviews and decisions across devices.</p></div>
+        <button className="primary-button" onClick={onSignIn}>Create a free account <Icon name="arrow" /></button>
+      </section>
+      <footer className="footer"><span>OUTPERFORM</span><span>Better work. Backed by evidence.</span></footer>
+    </main>
+  );
+}
+
 export default function App() {
   const { data: authSession, isPending: authPending } = authClient.useSession();
   const [health, setHealth] = useState("checking");
@@ -218,7 +307,7 @@ export default function App() {
   }
 
   if (authPending) return <div className="boot-screen"><Mark /><span>Loading your workspace…</span></div>;
-  if (!authSession?.user) return <AuthScreen />;
+  if (!authSession?.user) return <GuestWorkspace onSignIn={() => { window.location.href = "/?account=1"; }} />;
 
   return (
     <div className="app-shell">
