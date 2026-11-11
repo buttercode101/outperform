@@ -76,8 +76,8 @@ async function createWorkSession(request, env, user) {
     return error("DAILY_SESSION_LIMIT_REACHED", "You have reached today's " + dailyLimit + " new-session limit. Your existing work remains available; try again after the UTC day resets.", 429);
   }
 
-  try {
   const contextObjectKey = context ? "sessions/" + session.id + "/source/context.txt" : null;
+  try {
   if (contextObjectKey) {
     await env.ARTIFACTS.put(contextObjectKey, context, {
       httpMetadata: { contentType: "text/plain; charset=utf-8" },
