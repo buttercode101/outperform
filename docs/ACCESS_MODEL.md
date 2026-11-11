@@ -6,6 +6,7 @@ OUTPERFORM must demonstrate value before asking for registration. The public ent
 
 - Open the product and build a structured work brief.
 - Add an objective, work type, success criteria and background/context.
+- Start from one of five built-in playbooks and edit its objective and criteria.
 - Import a text-based file up to 100 KB (TXT, Markdown, JSON, CSV, HTML, XML or YAML) into the local brief.
 - Edit, delete and export local briefs.
 - Save briefs in browser-local storage on the current device.
@@ -25,6 +26,7 @@ An account is required only when a user chooses a feature that needs identity, s
 - Review results and record approval/rejection.
 - Access the same workspace across devices.
 - Save and reuse private playbooks with custom objectives, requirements and constraints.
+- Start up to 10 AI workflows per UTC day. Saving or importing briefs does not consume a run; the allowance is reserved only when execution starts. Each run is capped at five model calls.
 - Permanently delete the account, saved sessions, playbooks and R2 artifacts through an explicit typed confirmation.
 
 Registration is free. A user should never be redirected to registration merely to view the public product or create/export a local brief. Explain the value of account-only capabilities at the point the user chooses them.
@@ -35,5 +37,5 @@ Registration is free. A user should never be redirected to registration merely t
 2. Do not imply that local guest work is cloud-backed or independently verified.
 3. Keep model execution behind authenticated, server-side ownership checks; never expose provider keys to the browser.
 4. Preserve a clear export path so users can take their guest work with them.
-5. When guest-to-account import is introduced, make it an explicit opt-in action with a preview and confirmation.
+5. Guest-to-account import is an explicit opt-in action. It creates saved cloud sessions but does not automatically start AI execution.
 6. Do not treat an account as payment. Free account registration unlocks the current authenticated product capabilities; any future paid tier must be a separate, transparent decision.
