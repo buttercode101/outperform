@@ -601,7 +601,7 @@ export default function App() {
             {notice && <p className="notice" role="alert">{notice}</p>}
             <div className="composer-actions"><button type="button" className="secondary-button" onClick={() => setShowComposer(false)}>Cancel</button><button type="submit" className="primary-button" disabled={busy || !objective.trim()}>{busy ? "Creating…" : "Create and run"} <Icon name="arrow" /></button></div>
           </form>
-          <p className="composer-note">Your original work will be preserved. AI evaluation is not the same as independent verification. {usage && "Daily fair-use allowance: " + usage.remaining + " of " + usage.dailyLimit + " new sessions remaining (UTC)."}</p>
+          <p className="composer-note">Your original work will be preserved. AI evaluation is not the same as independent verification. {usage && "Daily fair-use allowance: " + usage.remaining + " of " + usage.dailyLimit + " AI runs remaining (UTC)."}</p>
         </section>
       </div>}
 
