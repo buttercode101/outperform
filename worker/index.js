@@ -17,6 +17,11 @@ const json = (data, status = 200) => new Response(JSON.stringify(data), {
 
 const error = (code, message, status) => json({ error: code, message }, status);
 
+async function sha256Hex(value) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 async function getUser(auth, request) {
   const result = await auth.api.getSession({ headers: request.headers });
   return result?.user ?? null;
@@ -161,6 +166,49 @@ async function handleApi(request, env) {
     }
     if (url.pathname === "/api/sessions" && request.method === "POST") {
       return createWorkSession(request, env, user);
+    }
+
+    const verifyArtifactMatch = url.pathname.match(/^\/api\/sessions\/([^/]+)\/artifacts\/([^/]+)\/verify$/);
+    if (verifyArtifactMatch && request.method === "POST") {
+      const sessionId = decodeURIComponent(verifyArtifactMatch[1]);
+      const artifactId = decodeURIComponent(verifyArtifactMatch[2]);
+      const artifact = await env.DB.prepare(
+        "SELECT a.id, a.object_key, a.content_hash FROM artifacts a INNER JOIN work_sessions s ON s.id = a.session_id WHERE a.id = ? AND a.session_id = ? AND s.owner_id = ?"
+      ).bind(artifactId, sessionId, user.id).first();
+      if (!artifact) return error("ARTIFACT_NOT_FOUND", "The requested artifact was not found.", 404);
+      const object = await env.ARTIFACTS.get(artifact.object_key);
+      if (!object) return error("ARTIFACT_CONTENT_MISSING", "The artifact content is unavailable.", 404);
+      const content = await object.text();
+      const computedHash = await sha256Hex(content);
+      const matches = computedHash === artifact.content_hash;
+      const now = new Date().toISOString();
+      const integrity = {
+        artifactId,
+        status: matches ? "VERIFIED" : "REFUTED",
+        storedHash: artifact.content_hash,
+        computedHash,
+        matches,
+        method: "SHA-256 recomputation against stored artifact metadata",
+        checkedAt: now
+      };
+      await env.DB.batch([
+        env.DB.prepare(
+          "INSERT OR IGNORE INTO evidence_records (id, session_id, claim, status, source_type, source_ref, details_json, observed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        ).bind(
+          "integrity-" + artifactId,
+          sessionId,
+          "R2 artifact content matches its stored SHA-256 fingerprint.",
+          matches ? "VERIFIED" : "REFUTED",
+          "R2_SHA256_RECOMPUTATION",
+          "r2://" + artifact.object_key,
+          JSON.stringify(integrity),
+          now
+        ),
+        env.DB.prepare(
+          "INSERT OR IGNORE INTO session_events (id, session_id, event_type, payload_json, occurred_at) VALUES (?, ?, ?, ?, ?)"
+        ).bind("integrity-event-" + artifactId, sessionId, "ARTIFACT_INTEGRITY_CHECKED", JSON.stringify(integrity), now)
+      ]);
+      return json({ integrity });
     }
 
     const artifactMatch = url.pathname.match(/^\/api\/sessions\/([^/]+)\/artifacts\/([^/]+)$/);
