@@ -162,6 +162,54 @@ async function handleApi(request, env) {
       });
     }
 
+    if (url.pathname === "/api/playbooks" && request.method === "GET") {
+      const result = await env.DB.prepare(
+        "SELECT id, name, task_type, description, objective_template, requirements_json, constraints_json, created_at, updated_at FROM user_playbooks WHERE owner_id = ? ORDER BY updated_at DESC"
+      ).bind(user.id).all();
+      return json({ playbooks: (result.results ?? []).map((item) => ({
+        id: item.id,
+        name: item.name,
+        taskType: item.task_type,
+        description: item.description,
+        objectiveTemplate: item.objective_template,
+        requirements: JSON.parse(item.requirements_json || "[]"),
+        constraints: JSON.parse(item.constraints_json || "[]"),
+        createdAt: item.created_at,
+        updatedAt: item.updated_at
+      })) });
+    }
+
+    if (url.pathname === "/api/playbooks" && request.method === "POST") {
+      let body;
+      try { body = await request.json(); } catch { return error("INVALID_JSON", "Provide a valid playbook.", 400); }
+      const allowedTypes = new Set(["CODE","RESEARCH","DOCUMENT","BUSINESS","CREATIVE","OTHER"]);
+      const name = typeof body.name === "string" ? body.name.trim().slice(0, 80) : "";
+      const taskType = typeof body.taskType === "string" ? body.taskType.toUpperCase() : "";
+      const description = typeof body.description === "string" ? body.description.trim().slice(0, 500) : "";
+      const objectiveTemplate = typeof body.objectiveTemplate === "string" ? body.objectiveTemplate.trim().slice(0, 3000) : "";
+      const requirements = Array.isArray(body.requirements) ? body.requirements.filter((item) => typeof item === "string" && item.trim()).slice(0, 20).map((item) => item.trim().slice(0, 500)) : [];
+      const constraints = Array.isArray(body.constraints) ? body.constraints.filter((item) => typeof item === "string" && item.trim()).slice(0, 20).map((item) => item.trim().slice(0, 500)) : [];
+      if (!name || !allowedTypes.has(taskType) || !objectiveTemplate) {
+        return error("INVALID_PLAYBOOK", "A name, supported work type and objective template are required.", 400);
+      }
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+      await env.DB.prepare(
+        "INSERT INTO user_playbooks (id, owner_id, name, task_type, description, objective_template, requirements_json, constraints_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      ).bind(id, user.id, name, taskType, description, objectiveTemplate, JSON.stringify(requirements), JSON.stringify(constraints), now, now).run();
+      return json({ playbook: { id, name, taskType, description, objectiveTemplate, requirements, constraints, createdAt: now, updatedAt: now } }, 201);
+    }
+
+    const playbookMatch = url.pathname.match(/^\/api\/playbooks\/([^/]+)$/);
+    if (playbookMatch && request.method === "DELETE") {
+      const playbookId = decodeURIComponent(playbookMatch[1]);
+      const result = await env.DB.prepare(
+        "DELETE FROM user_playbooks WHERE id = ? AND owner_id = ?"
+      ).bind(playbookId, user.id).run();
+      if ((result.meta?.changes ?? 0) !== 1) return error("PLAYBOOK_NOT_FOUND", "The requested playbook was not found.", 404);
+      return json({ deleted: true, id: playbookId });
+    }
+
     if (url.pathname === "/api/sessions" && request.method === "GET") {
       return json({ sessions: await listSessions(env, user.id) });
     }
