@@ -138,10 +138,22 @@ async function handleApi(request, env) {
     if (url.pathname === "/api/usage" && request.method === "GET") {
       const usageDate = new Date().toISOString().slice(0, 10);
       const dailyLimit = Math.max(1, Math.min(50, Number(env.MAX_DAILY_SESSIONS) || 10));
-      const usage = await env.DB.prepare(
-        "SELECT runs_started FROM user_daily_usage WHERE user_id = ? AND usage_date = ?"
-      ).bind(user.id, usageDate).first();
-      return json({ usageDate, runsStarted: usage?.runs_started ?? 0, dailyLimit, remaining: Math.max(0, dailyLimit - (usage?.runs_started ?? 0)), resetTimezone: "UTC" });
+      const [usage, modelUsage] = await Promise.all([
+        env.DB.prepare(
+          "SELECT runs_started FROM user_daily_usage WHERE user_id = ? AND usage_date = ?"
+        ).bind(user.id, usageDate).first(),
+        env.DB.prepare(
+          "SELECT COUNT(*) AS model_calls, COALESCE(SUM(CAST(json_extract(e.payload_json, '$.totalTokens') AS INTEGER)), 0) AS total_tokens, COALESCE(SUM(CAST(json_extract(e.payload_json, '$.costCredits') AS REAL)), 0) AS cost_credits FROM session_events e INNER JOIN work_sessions s ON s.id = e.session_id WHERE s.owner_id = ? AND e.event_type = 'MODEL_USAGE_RECORDED' AND date(e.occurred_at) = ?"
+        ).bind(user.id, usageDate).first()
+      ]);
+      const runsStarted = usage?.runs_started ?? 0;
+      return json({
+        usageDate, runsStarted, dailyLimit, remaining: Math.max(0, dailyLimit - runsStarted),
+        modelCalls: modelUsage?.model_calls ?? 0,
+        totalTokens: modelUsage?.total_tokens ?? 0,
+        costCredits: modelUsage?.cost_credits ?? 0,
+        resetTimezone: "UTC"
+      });
     }
 
     if (url.pathname === "/api/sessions" && request.method === "GET") {
