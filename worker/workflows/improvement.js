@@ -26,7 +26,7 @@ async function setStatus(db, sessionId, status, bestArtifactId = undefined) {
   }
 }
 
-async function callModel(env, { system, prompt, temperature = 0.4, maxTokens = 3500 }) {
+async function callModel(env, { sessionId, stage, system, prompt, temperature = 0.4, maxTokens = 3500 }) {
   if (!env.OPENROUTER_API_KEY || !env.OPENROUTER_MODEL) {
     const error = new Error("Model provider is not configured. Set OPENROUTER_API_KEY and OPENROUTER_MODEL before starting sessions.");
     error.code = "PROVIDER_NOT_CONFIGURED";
@@ -62,6 +62,31 @@ async function callModel(env, { system, prompt, temperature = 0.4, maxTokens = 3
     const error = new Error("Model provider returned an empty or unsupported response.");
     error.code = "EMPTY_MODEL_RESPONSE";
     throw error;
+  }
+  const usage = payload?.usage ?? {};
+  const numberOrNull = (value) => Number.isFinite(Number(value)) ? Number(value) : null;
+  const promptTokens = numberOrNull(usage.prompt_tokens);
+  const completionTokens = numberOrNull(usage.completion_tokens);
+  const totalTokens = numberOrNull(usage.total_tokens) ?? (promptTokens !== null && completionTokens !== null ? promptTokens + completionTokens : null);
+  if (sessionId && stage) {
+    await env.DB.prepare(
+      "INSERT INTO session_events (id, session_id, event_type, payload_json, occurred_at) VALUES (?, ?, ?, ?, ?)"
+    ).bind(
+      crypto.randomUUID(),
+      sessionId,
+      "MODEL_USAGE_RECORDED",
+      JSON.stringify({
+        stage,
+        model: payload.model || env.OPENROUTER_MODEL,
+        generationId: payload.id || null,
+        promptTokens,
+        completionTokens,
+        totalTokens,
+        costCredits: numberOrNull(usage.cost),
+        finishReason: payload.choices?.[0]?.finish_reason || null
+      }),
+      isoNow()
+    ).run();
   }
   return content.trim();
 }
@@ -203,6 +228,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       "primary-performance",
       { retries: { limit: 2, delay: "3 seconds", backoff: "exponential" } },
       async () => callModel(this.env, {
+        sessionId, stage: "PRIMARY",
         system: "You are the primary performance engine inside OUTPERFORM. Produce the strongest useful deliverable for the user's objective. Respect constraints, distinguish facts from assumptions, and do not claim tests or research were performed unless they were.",
         prompt: `TASK TYPE: ${session.task_type}\nOBJECTIVE: ${session.objective}\nCONTEXT AND EXISTING WORK:\n${contextObject || "(No additional context supplied)"}\n\n${criteriaText}\n\nProduce a complete first attempt. State material assumptions and unresolved uncertainties.`,
         temperature: 0.45
@@ -238,6 +264,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         "independent-challenge",
         { retries: { limit: 2, delay: "3 seconds", backoff: "exponential" } },
         async () => callModel(this.env, {
+          sessionId, stage: "CHALLENGER",
           system: "You are an independent rival solution engine. You have not seen the primary answer. Do not imitate it. Solve the user's task independently and aim to outperform a strong competing system. Do not claim verification you did not perform.",
           prompt: `TASK TYPE: ${session.task_type}\nOBJECTIVE: ${session.objective}\nCONTEXT AND EXISTING WORK:\n${contextObject || "(No additional context supplied)"}\n\n${criteriaText}\n\nProduce a complete independent alternative. Surface assumptions and uncertainty.`,
           temperature: 0.65
@@ -262,6 +289,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
 
     const evaluationText = await step.do("independent-adjudication", async () =>
       callModel(this.env, {
+        sessionId, stage: "ADJUDICATION",
         system: "You are an independent evaluator. Compare the candidates against the stated objective and task type. Return ONLY valid JSON with keys preferred (primary|challenger), rationale, strengths (array), risks (array), improvementIdeas (array). Do not claim external verification, factual validation, code execution or test results. If uncertain, prefer primary and explain why.",
         prompt: `OBJECTIVE: ${session.objective}\nTASK TYPE: ${session.task_type}\n${criteriaText}\n\nPRIMARY CANDIDATE:\n${primaryContent}\n\nCHALLENGER CANDIDATE:\n${challengerArtifact ? challengerContent : "(No challenger candidate was produced)"}\n\nCompare for correctness, completeness, clarity, constraint adherence and likely usefulness. This is a model evaluation, not external verification.`,
         temperature: 0.1,
@@ -285,6 +313,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         return { status: "IMPROVING" };
       });
       finalContent = await step.do("final-improvement", async () => callModel(this.env, {
+        sessionId, stage: "FINAL_IMPROVEMENT",
         system: "You are OUTPERFORM's final improvement engine. Your job is to deliver a meaningfully better final artifact, not another critique. Integrate the strongest candidate material, fix the evaluator's identified weaknesses, satisfy every mandatory requirement and respect every constraint. Preserve correct content. Do not invent evidence, citations, tests or research. Make the output directly usable.",
         prompt: `OBJECTIVE: ${session.objective}\nTASK TYPE: ${session.task_type}\n\n${criteriaText}\n\nBACKGROUND:\n${contextObject || "(No additional context supplied)"}\n\nBEST CANDIDATE:\n${selectedContent}\n\nCOMPARATIVE EVALUATION:\n${JSON.stringify(evaluation, null, 2)}\n\nProduce the strongest final version. Incorporate useful improvements, resolve identified risks where possible, and clearly label any uncertainty or work that still requires external verification.`,
         temperature: 0.25,
@@ -334,6 +363,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         return { status: "VERIFYING" };
       });
       const finalReviewText = await step.do("final-criteria-review", async () => callModel(this.env, {
+        sessionId, stage: "FINAL_REVIEW",
         system: "You are the final quality reviewer for OUTPERFORM. Review the final artifact against the user's explicit requirements and constraints. You cannot execute code, browse the web, inspect external systems or independently verify facts in this step. Return ONLY JSON with assessment (string), criteriaCoverage (array of objects or strings), remainingRisks (array), and unverifiedClaims (array). Never mark anything externally verified.",
         prompt: `OBJECTIVE: ${session.objective}\nTASK TYPE: ${session.task_type}\n\n${criteriaText}\n\nFINAL ARTIFACT:\n${finalContent}\n\nAssess how well the artifact addresses each requirement, identify remaining gaps and flag claims needing external verification.`,
         temperature: 0.1,
