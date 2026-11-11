@@ -569,7 +569,7 @@ export default function App() {
             {(() => {
               const gate = selected.detail.events.find((event) => event.event_type === "DETERMINISTIC_QUALITY_GATE_COMPLETED")?.payload;
               return gate ? <section className="quality-gate-panel">
-                <div className="quality-gate-heading"><div><span className="section-kicker">DETERMINISTIC CHECKS</span><h3>Artifact quality gate</h3></div><strong>{gate.summary?.outcome === "MECHANICAL_CHECKS_PASSED" ? "Checks passed" : gate.summary?.outcome === "BLOCKED" ? "Blocked" : "Review required"}</strong></div>
+                <div className="quality-gate-heading"><div><span className="section-kicker">DETERMINISTIC CHECKS</span><h3>Artifact quality gate</h3></div><strong>{gate.summary?.outcome === "MECHANICAL_CHECKS_PASSED" ? "Checks passed" : gate.summary?.outcome === "FAILED_CHECKS" ? "Checks failed" : "Review required"}</strong></div>
                 <div className="quality-gate-stats"><span>{gate.summary?.passed || 0} passed</span><span>{gate.summary?.flagged || 0} flagged</span><span>{gate.summary?.failed || 0} failed</span><span>{gate.wordCount || 0} words</span></div>
                 <ul>{(gate.checks || []).map((check) => <li key={check.id}><span className={"gate-status gate-" + check.status.toLowerCase()}>{check.status}</span><div><strong>{check.label}</strong><small>{check.detail}</small></div></li>)}</ul>
                 <p>These checks inspect text structure only. They do not prove factual accuracy, requirement satisfaction, code correctness or real-world usefulness.</p>
