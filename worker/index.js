@@ -118,7 +118,7 @@ async function handleApi(request, env) {
       artifactStorage: Boolean(env.ARTIFACTS),
       durableWorkflow: Boolean(env.OUTPERFORM_WORKFLOW),
       authenticationConfigured: Boolean(env.BETTER_AUTH_SECRET),
-      modelProviderConfigured: Boolean(env.OPENROUTER_API_KEY && env.OPENROUTER_MODEL),
+      modelProviderConfigured: Boolean(env.OPENROUTER_API_KEY && env.OPENROUTER_MODEL && env.OPENROUTER_CHALLENGER_MODEL),
       timestamp: new Date().toISOString()
     });
   }
