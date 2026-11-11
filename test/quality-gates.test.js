@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { inspectArtifact } from "../src/domain/quality-gates.js";
 
 test("passes mechanical checks for a substantive clean artifact", () => {
-  const result = inspectArtifact("# Summary\n\nThis is a substantive deliverable with enough words to pass the minimum content threshold and no unfinished markers or unsupported verification claims.", { taskType: "DOCUMENT" });
+  const result = inspectArtifact("# Summary\n\nThis is a substantive deliverable with enough words to pass the minimum content threshold and no unfinished markers or unsupported verification claims. It includes context, useful structure, clear reasoning, and a complete practical conclusion for the intended reader.", { taskType: "DOCUMENT" });
   assert.equal(result.summary.outcome, "MECHANICAL_CHECKS_PASSED");
   assert.equal(result.summary.failed, 0);
 });
@@ -17,7 +17,7 @@ test("flags short outputs for human review without pretending they are verified"
 test("blocks artifacts with common unfinished placeholders", () => {
   const result = inspectArtifact("# Plan\n\nTODO: insert source here.", { taskType: "RESEARCH" });
   assert.equal(result.checks.find((item) => item.id === "placeholder_scan").status, "FAIL");
-  assert.equal(result.summary.outcome, "BLOCKED");
+  assert.equal(result.summary.outcome, "FAILED_CHECKS");
 });
 
 test("flags unsupported claims that tests or verification were completed", () => {
