@@ -175,6 +175,13 @@ export default function App() {
   const { data: authSession, isPending: authPending } = authClient.useSession();
   const [health, setHealth] = useState("checking");
   const [sessions, setSessions] = useState([]);
+  const [guestBriefs, setGuestBriefs] = useState(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("outperform_guest_work") || "[]");
+      return Array.isArray(stored) ? stored : [];
+    } catch { return []; }
+  });
+  const [importBusy, setImportBusy] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
   const [taskType, setTaskType] = useState("CODE");
   const [objective, setObjective] = useState("");
@@ -196,6 +203,42 @@ export default function App() {
   const [taskFilter, setTaskFilter] = useState("ALL");
   const [activeView, setActiveView] = useState("overview");
   const [detailLoading, setDetailLoading] = useState(false);
+
+
+  async function importGuestBriefs() {
+    if (!guestBriefs.length || importBusy) return;
+    setImportBusy(true);
+    setNotice("");
+    const remaining = [...guestBriefs];
+    let imported = 0;
+    try {
+      while (remaining.length) {
+        const brief = remaining[0];
+        const response = await fetch("/api/sessions", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            taskType: brief.taskType,
+            objective: brief.objective,
+            context: brief.context || "",
+            requirements: (brief.requirements || []).map((description) => ({ description, source: "USER", mandatory: true }))
+          })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "Could not import a guest brief.");
+        remaining.shift();
+        imported += 1;
+        localStorage.setItem("outperform_guest_work", JSON.stringify(remaining));
+        setGuestBriefs([...remaining]);
+      }
+      await loadSessions();
+      setNotice(imported + " guest brief" + (imported === 1 ? " was" : "s were") + " imported as saved sessions. They have not been run or sent to the AI engine.");
+    } catch (e) {
+      setNotice(imported + " brief" + (imported === 1 ? " was" : "s were") + " imported; the remaining briefs are still available on this device. " + e.message);
+    } finally {
+      setImportBusy(false);
+    }
+  }
 
   async function loadSessions() {
     const response = await fetch("/api/sessions");
@@ -439,6 +482,8 @@ export default function App() {
           <div className="breadcrumb">Workspace <span>/</span> {activeView === "overview" ? "Overview" : activeView === "playbooks" ? "Playbooks" : "Performance"}</div>
           <div className="topbar-right"><span className="private-label"><Icon name="shield" /> Private workspace</span><span className="user-email">{authSession.user.email}</span><button className="signout-button" onClick={() => authClient.signOut()}>Sign out</button><div className="avatar">{(authSession.user.name || "O").slice(0,1).toUpperCase()}</div></div>
         </header>
+
+        {guestBriefs.length > 0 && <section className="guest-import-banner"><div><span className="section-kicker">LOCAL WORK FOUND</span><strong>{guestBriefs.length} guest brief{guestBriefs.length === 1 ? "" : "s"} available to import</strong><p>Bring your saved device-only briefs into this private workspace. Import creates saved sessions only; it does not run AI or upload anything until you choose.</p></div><div><button className="secondary-button" disabled={importBusy} onClick={() => { setGuestBriefs([]); localStorage.removeItem("outperform_guest_work"); }}>Keep on this device</button><button className="primary-button" disabled={importBusy} onClick={importGuestBriefs}>{importBusy ? "Importing…" : "Import briefs"} <Icon name="arrow" /></button></div></section>}
 
         {activeView === "overview" && <>
         <section className="hero">
