@@ -47,11 +47,15 @@ async function createWorkSession(request, env, user) {
   }
   if (context.length > 100_000) return error("CONTEXT_TOO_LARGE", "Context must be smaller than 100 KB.", 413);
 
+  const requestedBudget = body.budget && typeof body.budget === "object" ? body.budget : {};
+  const boundedInteger = (value, fallback, min, max) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.min(max, Math.max(min, Math.floor(parsed))) : fallback;
+  };
   const budget = {
-    maxModelCalls: 5,
+    maxModelCalls: boundedInteger(requestedBudget.maxModelCalls, 5, 3, 5),
     maxWallClockSeconds: 600,
-    maxToolCalls: 4,
-    ...(body.budget && typeof body.budget === "object" ? body.budget : {})
+    maxToolCalls: 4
   };
   const requirements = Array.isArray(body.requirements) ? body.requirements.slice(0, 30) : [];
   const constraints = Array.isArray(body.constraints) ? body.constraints.slice(0, 30) : [];
@@ -62,7 +66,18 @@ async function createWorkSession(request, env, user) {
     return error(e.code ?? "INVALID_SESSION", e.message, 400);
   }
 
-  const contextObjectKey = context ? `sessions/${session.id}/source/context.txt` : null;
+  const usageDate = new Date().toISOString().slice(0, 10);
+  const now = new Date().toISOString();
+  const dailyLimit = Math.max(1, Math.min(50, Number(env.MAX_DAILY_SESSIONS) || 10));
+  const usageReservation = await env.DB.prepare(
+    "INSERT INTO user_daily_usage (user_id, usage_date, sessions_created, created_at, updated_at) VALUES (?, ?, 1, ?, ?) ON CONFLICT(user_id, usage_date) DO UPDATE SET sessions_created = sessions_created + 1, updated_at = excluded.updated_at WHERE sessions_created < ? RETURNING sessions_created"
+  ).bind(user.id, usageDate, now, now, dailyLimit).first();
+  if (!usageReservation) {
+    return error("DAILY_SESSION_LIMIT_REACHED", "You have reached today's " + dailyLimit + " new-session limit. Your existing work remains available; try again after the UTC day resets.", 429);
+  }
+
+  try {
+  const contextObjectKey = context ? "sessions/" + session.id + "/source/context.txt" : null;
   if (contextObjectKey) {
     await env.ARTIFACTS.put(contextObjectKey, context, {
       httpMetadata: { contentType: "text/plain; charset=utf-8" },
@@ -100,13 +115,15 @@ async function createWorkSession(request, env, user) {
     ).bind(constraint.id, session.id, constraint.description, constraint.type, session.createdAt));
   }
 
-  try {
     await env.DB.batch(statements);
   } catch (e) {
     if (contextObjectKey) await env.ARTIFACTS.delete(contextObjectKey);
+    await env.DB.prepare(
+      "UPDATE user_daily_usage SET sessions_created = MAX(0, sessions_created - 1), updated_at = ? WHERE user_id = ? AND usage_date = ?"
+    ).bind(new Date().toISOString(), user.id, usageDate).run();
     throw e;
   }
-  return json({ session: { id: session.id, status: session.status, taskType, objective, createdAt: session.createdAt } }, 201);
+  return json({ session: { id: session.id, status: session.status, taskType, objective, createdAt: session.createdAt }, usage: { sessionsCreated: usageReservation.sessions_created, dailyLimit, usageDate } }, 201);
 }
 
 async function handleApi(request, env) {
