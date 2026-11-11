@@ -251,7 +251,9 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
     );
 
     await step.do("mark-baseline", async () => {
-      await setStatus(this.env.DB, sessionId, "BASELINING");
+      await this.env.DB.prepare(
+        "UPDATE work_sessions SET status = 'BASELINING', baseline_artifact_id = ?, updated_at = ? WHERE id = ?"
+      ).bind(baselineArtifact.id, isoNow(), sessionId).run();
       await recordEvent(this.env.DB, sessionId, "BASELINE_CAPTURED", {
         contextPresent: Boolean(contextObject),
         artifactId: baselineArtifact.id,
@@ -384,6 +386,18 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         return { artifactId: finalArtifact.id };
       });
     }
+
+    await step.do("record-best-artifact-pointer", async () => {
+      await this.env.DB.prepare(
+        "UPDATE work_sessions SET best_artifact_id = ?, updated_at = ? WHERE id = ?"
+      ).bind(finalArtifact.id, isoNow(), sessionId).run();
+      await recordEvent(this.env.DB, sessionId, "BEST_ARTIFACT_SELECTED", {
+        artifactId: finalArtifact.id,
+        contentHash: finalArtifact.contentHash,
+        role: finalArtifact.role
+      });
+      return { artifactId: finalArtifact.id, role: finalArtifact.role };
+    });
 
     const qualityGate = await step.do("deterministic-artifact-quality-gate", async () => {
       const result = inspectArtifact(finalContent, { taskType: session.task_type });
