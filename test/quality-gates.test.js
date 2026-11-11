@@ -32,5 +32,5 @@ test("flags repeated headings", () => {
 
 test("handles non-string input safely", () => {
   const result = inspectArtifact(null);
-  assert.equal(result.summary.outcome, "BLOCKED");
+  assert.equal(result.summary.outcome, "FAILED_CHECKS");
 });
