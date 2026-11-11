@@ -211,6 +211,7 @@ export default function App() {
   const { data: authSession, isPending: authPending } = authClient.useSession();
   const [health, setHealth] = useState("checking");
   const [sessions, setSessions] = useState([]);
+  const [usage, setUsage] = useState(null);
   const [guestBriefs, setGuestBriefs] = useState(() => {
     try {
       const stored = JSON.parse(localStorage.getItem("outperform_guest_work") || "[]");
@@ -296,7 +297,11 @@ export default function App() {
     let active = true;
     const refresh = () => loadSessions().catch(() => {});
     refresh();
-    const interval = window.setInterval(refresh, 5000);
+    fetch("/api/usage").then((response) => response.json()).then((data) => { if (active) setUsage(data); }).catch(() => {});
+    const interval = window.setInterval(() => {
+      refresh();
+      fetch("/api/usage").then((response) => response.json()).then((data) => { if (active) setUsage(data); }).catch(() => {});
+    }, 15000);
     return () => { active = false; window.clearInterval(interval); };
   }, [authSession?.user?.id]);
 
@@ -592,7 +597,7 @@ export default function App() {
             {notice && <p className="notice" role="alert">{notice}</p>}
             <div className="composer-actions"><button type="button" className="secondary-button" onClick={() => setShowComposer(false)}>Cancel</button><button type="submit" className="primary-button" disabled={busy || !objective.trim()}>{busy ? "Creating…" : "Create and run"} <Icon name="arrow" /></button></div>
           </form>
-          <p className="composer-note">Your original work will be preserved. AI evaluation is not the same as independent verification.</p>
+          <p className="composer-note">Your original work will be preserved. AI evaluation is not the same as independent verification. {usage && "Daily fair-use allowance: " + usage.remaining + " of " + usage.dailyLimit + " new sessions remaining (UTC)."}</p>
         </section>
       </div>}
 
