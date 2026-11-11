@@ -583,6 +583,12 @@ export default function App() {
       ...(detail.requirements?.length ? detail.requirements.map((item) => "- " + (item.mandatory ? "[MUST] " : "[SHOULD] ") + item.description) : ["- No explicit acceptance criteria were supplied."]), "",
       "## Constraints",
       ...(detail.constraints?.length ? detail.constraints.map((item) => "- " + item.description) : ["- No additional constraints supplied."]), "",
+      "## Risk and challenge selection",
+      ...(events.find((event) => event.event_type === "RISK_ASSESSMENT_COMPLETED")?.payload
+        ? ["- Heuristic risk: " + events.find((event) => event.event_type === "RISK_ASSESSMENT_COMPLETED").payload.risk,
+           "- Uncertainty estimate: " + events.find((event) => event.event_type === "RISK_ASSESSMENT_COMPLETED").payload.uncertainty,
+           "- Signals: " + (events.find((event) => event.event_type === "RISK_ASSESSMENT_COMPLETED").payload.signals || []).join(", ")]
+        : ["- No risk assessment was recorded."]), "",
       "## Artifact integrity checks",
       ...(events.filter((event) => event.event_type === "ARTIFACT_INTEGRITY_CHECKED").length
         ? events.filter((event) => event.event_type === "ARTIFACT_INTEGRITY_CHECKED").map((event) => "- " + event.payload.status + " — " + event.payload.artifactId + " — stored " + event.payload.storedHash + " / recomputed " + event.payload.computedHash)
@@ -777,6 +783,10 @@ export default function App() {
           {detailLoading ? <p>Loading session evidence…</p> : selected.detail && <>
             <div className="review-meta"><Status value={selected.detail.session.status} /><span>{selected.detail.artifacts.length} candidate artifacts</span></div>
             <div className="verification-note"><Icon name="shield" /> AI-selected candidate · Not independently verified</div>
+            {(() => {
+              const risk = selected.detail.events.find((event) => event.event_type === "RISK_ASSESSMENT_COMPLETED")?.payload;
+              return risk ? <div className="risk-assessment"><div><span className="section-kicker">WORK RISK PROFILE</span><strong>{risk.risk} RISK</strong></div><span>Uncertainty estimate: {risk.uncertainty}</span><small>Heuristic signals: {(risk.signals || []).join(", ") || "No selected high-risk keywords"}. This is a routing aid, not a formal risk assessment.</small></div> : null;
+            })()}
             {(() => {
               const usageEvents = selected.detail.events.filter((event) => event.event_type === "MODEL_USAGE_RECORDED");
               if (!usageEvents.length) return null;
