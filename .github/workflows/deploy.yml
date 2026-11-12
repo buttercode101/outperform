@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: outperform-production
-  cancel-in-progress: true
+  group: outperform-production-operations
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -53,37 +53,33 @@ jobs:
       - name: Build production application
         run: npm run build
 
-      - name: Back up production D1 and rehearse restore before deployment
+      - name: Verify production D1 point-in-time recovery without locking live traffic
         shell: bash
         run: |
           set -euo pipefail
-          backup_file="outperform-prod-${GITHUB_SHA}.sql"
-          restored_file="/tmp/outperform-prod-restore-check.sql"
-          npx wrangler d1 export outperform-prod --remote --skip-confirmation --output="$backup_file" --config dist/worker/wrangler.json
-          test -s "$backup_file"
-          echo "Production D1 export size: $(wc -c < "$backup_file") bytes"
-          npx wrangler d1 execute outperform-prod --local --file="$backup_file" --yes --config dist/worker/wrangler.json
-          restore_check="$(npx wrangler d1 execute outperform-prod --local --command "SELECT (SELECT COUNT(*) FROM \"user\") AS users, (SELECT COUNT(*) FROM work_sessions) AS sessions, (SELECT COUNT(*) FROM artifacts) AS artifacts" --json --config dist/worker/wrangler.json)"
-          printf '%s' "$restore_check" | node -e '
+          database_info="$(curl --silent --show-error --fail \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.cloudflare.com/client/v4/accounts/90cefa028781f749f5816c5748f04cd2/d1/database/cb25ae38-f5bc-4e96-8ea2-b049456b5187")"
+          printf '%s' "$database_info" | node -e '
             let input = "";
             process.stdin.on("data", chunk => input += chunk);
             process.stdin.on("end", () => {
-              const parsed = JSON.parse(input);
-              const results = parsed[0]?.results ?? parsed.result?.[0]?.results ?? [];
-              if (!results.length || !Number.isInteger(results[0].users) || !Number.isInteger(results[0].sessions) || !Number.isInteger(results[0].artifacts)) {
-                console.error("Restored D1 snapshot did not return the expected core tables.");
+              const payload = JSON.parse(input);
+              if (payload.success !== true || payload.result?.version !== "production") {
+                console.error("Production D1 Time Travel backend is not available.");
                 process.exit(1);
               }
-              console.log("Restored snapshot verified:", JSON.stringify(results[0]));
+              console.log("Production D1 backend verified:", payload.result.version);
             });
           '
-          object_key="backups/$backup_file"
-          npx wrangler r2 object put "outperform-artifacts-prod/$object_key" --file="$backup_file" --remote --content-type="application/sql" --config dist/worker/wrangler.json
-          npx wrangler r2 object get "outperform-artifacts-prod/$object_key" --file="$restored_file" --remote --config dist/worker/wrangler.json
-          cmp "$backup_file" "$restored_file"
-          sha256sum "$backup_file"
-          echo "Private R2 backup uploaded and byte-for-byte restore download verified: $object_key"
-          rm -f "$backup_file" "$restored_file"
+          bookmark_info="$(npx wrangler d1 time-travel info outperform-prod --config dist/worker/wrangler.json)"
+          printf '%s\\n' "$bookmark_info"
+          if ! grep -Eqi 'current bookmark' <<<"$bookmark_info"; then
+            echo "Could not verify the current D1 recovery bookmark."
+            exit 1
+          fi
+          echo "D1 automatic point-in-time recovery is available. This check is read-only and does not export or lock the live database."
 
       - name: Apply production D1 migrations
         run: npx wrangler d1 migrations apply outperform-prod --remote --config dist/worker/wrangler.json

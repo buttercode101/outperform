@@ -3,6 +3,7 @@ import { planChallenge } from "../../src/domain/challenge.js";
 import { inspectArtifact } from "../../src/domain/quality-gates.js";
 import { assessWorkRisk } from "../../src/domain/risk-assessment.js";
 import { buildFinalReviewPrompt } from "../../src/domain/final-review.js";
+import { WORKFLOW_ARTIFACT_VERSIONS } from "../../src/domain/artifact.js";
 
 const isoNow = () => new Date().toISOString();
 
@@ -118,8 +119,28 @@ async function storeArtifact(env, session, content, role, version, parentArtifac
     await env.DB.prepare(
       "INSERT OR IGNORE INTO artifacts (id, session_id, kind, object_key, content_hash, parent_artifact_id, created_by, version, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
     ).bind(id, session.id, "MARKDOWN", objectKey, contentHash, parentArtifactId, role, version, isoNow()).run();
+    const persisted = await env.DB.prepare(
+      "SELECT session_id, kind, object_key, content_hash, parent_artifact_id, created_by, version FROM artifacts WHERE id = ?"
+    ).bind(id).first();
+    if (!persisted ||
+        persisted.session_id !== session.id ||
+        persisted.kind !== "MARKDOWN" ||
+        persisted.object_key !== objectKey ||
+        persisted.content_hash !== contentHash ||
+        (persisted.parent_artifact_id ?? null) !== (parentArtifactId ?? null) ||
+        persisted.created_by !== role ||
+        persisted.version !== version) {
+      throw new Error("Artifact metadata was not persisted with the expected session, lineage, hash and version.");
+    }
   } catch (error) {
-    await env.ARTIFACTS.delete(objectKey);
+    // Delete an orphaned object only when D1 confirms that no metadata row references it.
+    // If D1 itself is unavailable, retain the object rather than risk deleting a committed artifact.
+    try {
+      const existing = await env.DB.prepare("SELECT id FROM artifacts WHERE id = ?").bind(id).first();
+      if (!existing) await env.ARTIFACTS.delete(objectKey);
+    } catch {
+      // Safe orphan cleanup can happen later; preserving a potentially referenced object wins.
+    }
     throw error;
   }
   return { id, objectKey, contentHash, version, role };
@@ -248,7 +269,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       criteriaText
     ].join("\n");
     const baselineArtifact = await step.do("store-baseline-artifact", async () =>
-      storeArtifact(this.env, session, baselineContent, "BASELINE", 0)
+      storeArtifact(this.env, session, baselineContent, "BASELINE", WORKFLOW_ARTIFACT_VERSIONS.BASELINE)
     );
 
     await step.do("mark-baseline", async () => {
@@ -280,7 +301,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       })
     );
     const primaryArtifact = await step.do("store-primary-artifact", async () =>
-      storeArtifact(this.env, session, primaryContent, "PRIMARY", 1, baselineArtifact.id)
+      storeArtifact(this.env, session, primaryContent, "PRIMARY", WORKFLOW_ARTIFACT_VERSIONS.PRIMARY, baselineArtifact.id)
     );
     await step.do("record-primary", async () => {
       await recordEvent(this.env.DB, sessionId, "PRIMARY_EXECUTION_COMPLETED", {
@@ -332,7 +353,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         })
       );
       challengerArtifact = await step.do("store-challenger-artifact", async () =>
-        storeArtifact(this.env, session, challengerContent, "CHALLENGER", 2, baselineArtifact.id)
+        storeArtifact(this.env, session, challengerContent, "CHALLENGER", WORKFLOW_ARTIFACT_VERSIONS.CHALLENGER, baselineArtifact.id)
       );
       await step.do("record-challenger", async () => {
         await recordEvent(this.env.DB, sessionId, "CHALLENGE_COMPLETED", {
@@ -381,7 +402,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         maxTokens: 4500
       }));
       finalArtifact = await step.do("store-final-artifact", async () =>
-        storeArtifact(this.env, session, finalContent, "FINAL", 3, selectedArtifact.id)
+        storeArtifact(this.env, session, finalContent, "FINAL", WORKFLOW_ARTIFACT_VERSIONS.FINAL, selectedArtifact.id)
       );
       await step.do("record-final-improvement", async () => {
         await recordEvent(this.env.DB, sessionId, "FINAL_IMPROVEMENT_COMPLETED", {
