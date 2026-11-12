@@ -89,7 +89,16 @@ function GuestWorkspace({ onSignIn }) {
   const [items, setItems] = useState(() => {
     try {
       const stored = JSON.parse(localStorage.getItem("outperform_guest_work") || "[]");
-      return Array.isArray(stored) ? stored.filter((item) => item && typeof item === "object" && typeof item.id === "string") : [];
+      return Array.isArray(stored)
+        ? stored.filter((item) => item && typeof item === "object" && typeof item.id === "string").map((item) => ({
+            ...item,
+            taskType: typeof item.taskType === "string" ? item.taskType : "OTHER",
+            objective: typeof item.objective === "string" ? item.objective : "",
+            context: typeof item.context === "string" ? item.context : "",
+            requirements: Array.isArray(item.requirements) ? item.requirements.filter((value) => typeof value === "string") : [],
+            createdAt: typeof item.createdAt === "string" ? item.createdAt : new Date().toISOString()
+          }))
+        : [];
     } catch { return []; }
   });
   const [objective, setObjective] = useState("");
