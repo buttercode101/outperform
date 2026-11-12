@@ -28,8 +28,10 @@ try {
   assert.equal(await page.locator("html").getAttribute("data-theme"), "dark", "System dark preference should be applied on first visit.");
   const darkBackground = await page.locator(".guest-screen").evaluate(element => getComputedStyle(element).backgroundColor);
   assert.ok(Number(darkBackground.match(/[0-9]+/)?.[0]) < 50, `Dark theme surface is not dark: ${darkBackground}`);
+  await page.screenshot({ path: `${outputDir}/guest-system-dark-1440.png`, fullPage: true });
 
   await page.getByRole("button", { name: "Switch to light mode" }).click();
+  await page.waitForTimeout(220);
   assert.equal(await page.locator("html").getAttribute("data-theme"), "light");
   await page.reload({ waitUntil: "networkidle" });
   await page.locator(".guest-hero h1").waitFor({ state: "visible" });
@@ -55,8 +57,12 @@ try {
     assert.ok(dimensions.libraryRight <= width + 1, `Saved brief panel overflows at ${width}px`);
     await page.screenshot({ path: `${outputDir}/guest-light-${width}.png`, fullPage: true });
     await page.getByRole("button", { name: "Switch to dark mode" }).click();
+    await page.waitForTimeout(220);
+    const settledDark = await page.locator(".guest-screen").evaluate(element => getComputedStyle(element).backgroundColor);
+    assert.ok(Number(settledDark.match(/[0-9]+/)?.[0]) < 50, `Dark theme did not settle at ${width}px: ${settledDark}`);
     await page.screenshot({ path: `${outputDir}/guest-dark-${width}.png`, fullPage: true });
     await page.getByRole("button", { name: "Switch to light mode" }).click();
+    await page.waitForTimeout(220);
   }
 
   await page.goto(baseURL + "/?account=1&mode=signup", { waitUntil: "networkidle" });
@@ -65,6 +71,7 @@ try {
   await page.screenshot({ path: `${outputDir}/auth-light-375.png`, fullPage: true });
   assert.equal(await page.locator("html").getAttribute("data-theme"), "light");
   await page.getByRole("button", { name: "Switch to dark mode" }).click();
+  await page.waitForTimeout(220);
   assert.equal(await page.locator("html").getAttribute("data-theme"), "dark", "Theme control should also be available on authentication.");
   await page.screenshot({ path: `${outputDir}/auth-dark-375.png`, fullPage: true });
   await page.reload({ waitUntil: "networkidle" });
@@ -76,6 +83,7 @@ try {
   await page.locator('input[type="file"]').setInputFiles({ name: "oversized.txt", mimeType: "text/plain", buffer: Buffer.alloc(100001, 97) });
   await page.getByText(/larger than 100 KB/).waitFor({ state: "visible" });
   await page.locator('input[type="file"]').setInputFiles({ name: "qa-context.md", mimeType: "text/markdown", buffer: Buffer.from("Imported context for browser-only quality verification.") });
+  await page.waitForFunction(() => document.querySelector("#guest-context")?.value.includes("Imported context"), null, { timeout: 10000 });
   assert.match(await page.locator("#guest-context").inputValue(), /Imported context/);
   const objective = `Browser QA brief ${new Date().toISOString()}`;
   await page.locator("#guest-objective").fill(objective);
@@ -113,7 +121,7 @@ try {
   let promptContent = "";
   for await (const chunk of promptStream) promptContent += chunk.toString("utf8");
   assert.match(promptContent, /Browser QA brief/);
-  assert.match(promptContent, /Acceptance criteria/);
+  assert.match(promptContent, /Success criteria/);
 
   page.once("dialog", dialog => dialog.accept());
   await editedRow.getByRole("button", { name: "Delete" }).click();
