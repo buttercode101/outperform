@@ -113,7 +113,7 @@ try {
   let promptContent = "";
   for await (const chunk of promptStream) promptContent += chunk.toString("utf8");
   assert.match(promptContent, /Browser QA brief/);
-  assert.match(promptContent, /Acceptance criteria/);
+  assert.match(promptContent, /Success criteria/);
 
   page.once("dialog", dialog => dialog.accept());
   await editedRow.getByRole("button", { name: "Delete" }).click();
