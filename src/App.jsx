@@ -211,9 +211,9 @@ function GuestWorkspace({ onSignIn }) {
         <div className="guest-actions"><span className="guest-label">GUEST MODE · SAVED ON THIS DEVICE</span><button className="secondary-button" onClick={onSignIn}>Sign in / Create account</button></div>
       </header>
       <section className="guest-hero">
-        <span className="eyebrow"><span className="eyebrow-line" /> THE WORK IMPROVEMENT ENGINE</span>
+        <span className="eyebrow"><span className="eyebrow-line" /> THE WORK IMPROVEMENT & PROOF ENGINE</span>
         <h1>Start with the work.<br/>No account required.</h1>
-        <p>Shape an idea, draft or project into a clear work brief. Save it in this browser and export it whenever you like. Create an account only when you want OUTPERFORM to run the AI improvement workflow and keep your work in the cloud.</p>
+        <p>Shape an idea, draft or project into a work brief. Get live completeness guidance, save it on this device, then export the brief or a reusable AI prompt for any model. No account is needed for these tools. Create a free account only when you want OUTPERFORM’s cloud AI workflow, iterative improvement passes and cross-device history.</p>
       </section>
       <section className="guest-grid">
         <form className="guest-composer" onSubmit={createBrief}>
