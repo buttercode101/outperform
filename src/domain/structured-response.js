@@ -53,3 +53,27 @@ export function normalizeModelContent(message) {
   if (typeof message.refusal === "string") return message.refusal.trim();
   return "";
 }
+
+export function parseAdjudicationResponse(content) {
+  const value = extractJsonObject(content);
+  if (!value || !["primary", "challenger"].includes(value.preferred)) {
+    throw new Error("Adjudication must return a complete JSON object with preferred set to primary or challenger.");
+  }
+  const rationale = typeof value.rationale === "string" ? value.rationale.trim() : "";
+  const listFields = ["strengths", "risks", "improvementIdeas"];
+  if (!rationale || listFields.some(field => !Array.isArray(value[field]))) {
+    throw new Error("Adjudication JSON must include a non-empty rationale and strengths, risks and improvementIdeas arrays.");
+  }
+  const normalizeList = (items) => items
+    .filter(item => typeof item === "string" && item.trim())
+    .slice(0, 5)
+    .map(item => item.trim());
+  return {
+    preferred: value.preferred,
+    rationale,
+    strengths: normalizeList(value.strengths),
+    risks: normalizeList(value.risks),
+    improvementIdeas: normalizeList(value.improvementIdeas),
+    parsed: true
+  };
+}
