@@ -4,7 +4,7 @@ import { inspectArtifact } from "../../src/domain/quality-gates.js";
 import { assessWorkRisk } from "../../src/domain/risk-assessment.js";
 import { buildFinalReviewPrompt } from "../../src/domain/final-review.js";
 import { WORKFLOW_ARTIFACT_VERSIONS } from "../../src/domain/artifact.js";
-import { extractJsonObject, normalizeModelContent } from "../../src/domain/structured-response.js";
+import { extractJsonObject, normalizeModelContent, parseAdjudicationResponse } from "../../src/domain/structured-response.js";
 
 const isoNow = () => new Date().toISOString();
 
@@ -182,30 +182,6 @@ async function storeArtifact(env, session, content, role, version, parentArtifac
     throw error;
   }
   return { id, objectKey, contentHash, version, role };
-}
-
-function parseJudgeResponse(content) {
-  try {
-    const value = extractJsonObject(content);
-    if (!value || !["primary", "challenger"].includes(value.preferred)) {
-      throw new Error("No valid preferred candidate was returned.");
-    }
-    return {
-      preferred: value.preferred,
-      rationale: typeof value.rationale === "string" ? value.rationale : "No rationale supplied.",
-      strengths: Array.isArray(value.strengths) ? value.strengths.slice(0, 8) : [],
-      risks: Array.isArray(value.risks) ? value.risks.slice(0, 8) : [],
-      improvementIdeas: Array.isArray(value.improvementIdeas) ? value.improvementIdeas.slice(0, 8) : []
-    };
-  } catch {
-    return {
-      preferred: "primary",
-      rationale: "The evaluator response could not be parsed. The primary output is shown without a quality endorsement.",
-      strengths: [],
-      risks: ["Evaluation response was not valid structured JSON."],
-      improvementIdeas: []
-    };
-  }
 }
 
 function parseFinalReview(content) {
@@ -408,18 +384,25 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       return { status: "EVALUATING" };
     });
 
-    const evaluationText = await step.do("independent-adjudication", async () =>
-      callModel(this.env, {
+    const evaluation = await step.do("independent-adjudication", async () => {
+      const evaluationText = await callModel(this.env, {
         sessionId, stage: "ADJUDICATION",
-        system: "You are an independent evaluator. Compare the candidates against the stated objective and task type. Return ONLY valid JSON with keys preferred (primary|challenger), rationale, strengths (array), risks (array), improvementIdeas (array). Do not claim external verification, factual validation, code execution or test results. If uncertain, prefer primary and explain why.",
-        prompt: `OBJECTIVE: ${session.objective}\nTASK TYPE: ${session.task_type}\nTASK-SPECIFIC METHOD: ${taskMethod}\n${criteriaText}\n\nPRIMARY CANDIDATE:\n${primaryContent}\n\nCHALLENGER CANDIDATE:\n${challengerArtifact ? challengerContent : "(No challenger candidate was produced)"}\n\nCompare for correctness, completeness, clarity, constraint adherence and likely usefulness. This is a model evaluation, not external verification.`,
+        system: "You are an independent evaluator. Compare both candidates against the objective, task type, requirements and constraints. Return ONLY one valid JSON object with keys preferred (exactly primary or challenger), rationale (maximum 60 words), strengths (array of 0-3 short strings), risks (array of 0-3 short strings), and improvementIdeas (array of 0-3 short strings). Keep each array item to 15 words or fewer. Do not add Markdown or prose outside JSON. Do not claim external verification, factual validation, code execution or test results. If uncertain, prefer primary and explain why.",
+        prompt: `OBJECTIVE: ${session.objective}\nTASK TYPE: ${session.task_type}\nTASK-SPECIFIC METHOD: ${taskMethod}\n${criteriaText}\n\nPRIMARY CANDIDATE:\n${primaryContent}\n\nCHALLENGER CANDIDATE:\n${challengerArtifact ? challengerContent : "(No challenger candidate was produced)"}\n\nCompare correctness, completeness, clarity, constraint adherence and usefulness. Return a compact, complete JSON object. This is a model evaluation, not external verification.`,
         temperature: 0.1,
-        maxTokens: 1800
-        // DeepSeek V4 Flash returned empty content for this adjudication JSON-mode request in production.
-        // The strict JSON prompt plus extractJsonObject parser avoids a duplicate provider call.
-      })
-    );
-    const evaluation = parseJudgeResponse(evaluationText);
+        maxTokens: 1400
+      });
+      const parsed = parseAdjudicationResponse(evaluationText);
+      await recordEvent(this.env.DB, sessionId, "ADJUDICATION_COMPLETED", {
+        parsed: true,
+        preferred: parsed.preferred,
+        rationale: parsed.rationale,
+        strengths: parsed.strengths,
+        risks: parsed.risks,
+        improvementIdeas: parsed.improvementIdeas
+      });
+      return parsed;
+    });
     const selectedArtifact = evaluation.preferred === "challenger" && challengerArtifact ? challengerArtifact : primaryArtifact;
     const selectedContent = evaluation.preferred === "challenger" && challengerArtifact ? challengerContent : primaryContent;
     const budget = JSON.parse(session.budget_json);
