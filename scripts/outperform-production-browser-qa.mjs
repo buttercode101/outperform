@@ -27,7 +27,7 @@ try {
   await page.locator(".guest-library .empty-state").waitFor({ state: "visible" });
   assert.equal(await page.locator("html").getAttribute("data-theme"), "dark", "System dark preference should be applied on first visit.");
   const darkBackground = await page.locator(".guest-screen").evaluate(element => getComputedStyle(element).backgroundColor);
-  assert.ok(Number(darkBackground.match(/\\d+/)?.[0]) < 50, `Dark theme surface is not dark: ${darkBackground}`);
+  assert.ok(Number(darkBackground.match(/[0-9]+/)?.[0]) < 50, `Dark theme surface is not dark: ${darkBackground}`);
 
   await page.getByRole("button", { name: "Switch to light mode" }).click();
   assert.equal(await page.locator("html").getAttribute("data-theme"), "light");
@@ -35,7 +35,7 @@ try {
   await page.locator(".guest-hero h1").waitFor({ state: "visible" });
   assert.equal(await page.locator("html").getAttribute("data-theme"), "light", "Manual theme choice should survive reload and override system preference.");
   const lightBackground = await page.locator(".guest-screen").evaluate(element => getComputedStyle(element).backgroundColor);
-  assert.ok(Number(lightBackground.match(/\\d+/)?.[0]) > 200, `Light theme surface is not light: ${lightBackground}`);
+  assert.ok(Number(lightBackground.match(/[0-9]+/)?.[0]) > 200, `Light theme surface is not light: ${lightBackground}`);
 
   for (const width of [320, 375, 768, 1120, 1440]) {
     await page.setViewportSize({ width, height: width < 500 ? 850 : 1000 });
