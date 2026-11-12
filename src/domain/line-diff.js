@@ -28,17 +28,17 @@ export function buildLineDiff(left = "", right = "", { maxCells = 180000 } = {})
   let removed = 0;
   while (i < a.length && j < b.length) {
     if (a[i] === b[j]) {
-      rows.push({ type: "context", text: a[i] });
+      rows.push({ type: "context", lineA: i + 1, lineB: j + 1, text: a[i] });
       i++; j++;
     } else if (dp[(i + 1) * width + j] >= dp[i * width + j + 1]) {
-      rows.push({ type: "removed", text: a[i++] });
+      rows.push({ type: "removed", lineA: i + 1, lineB: null, text: a[i++] });
       removed++;
     } else {
-      rows.push({ type: "added", text: b[j++] });
+      rows.push({ type: "added", lineA: null, lineB: j + 1, text: b[j++] });
       added++;
     }
   }
-  while (i < a.length) { rows.push({ type: "removed", text: a[i++] }); removed++; }
-  while (j < b.length) { rows.push({ type: "added", text: b[j++] }); added++; }
+  while (i < a.length) { rows.push({ type: "removed", lineA: i + 1, lineB: null, text: a[i++] }); removed++; }
+  while (j < b.length) { rows.push({ type: "added", lineA: null, lineB: j + 1, text: b[j++] }); added++; }
   return { mode: "diff", rows, added, removed };
 }
