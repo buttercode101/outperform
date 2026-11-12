@@ -14,7 +14,7 @@
     "deploy": "npm run build && wrangler deploy --config dist/worker/wrangler.json",
     "test": "node --test",
     "test:watch": "node --test --watch",
-    "check": "for file in src/domain/*.js src/application/*.js worker/*.js worker/workflows/*.js; do node --check \"$file\"; done"
+    "check": "for file in src/domain/*.js src/application/*.js worker/*.js worker/workflows/*.js scripts/*.mjs; do node --check \"$file\"; done"
   },
   "dependencies": {
     "better-auth": "1.7.16",
