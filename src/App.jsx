@@ -696,8 +696,10 @@ export default function App() {
     }
   }
 
-  if (authPending) return <div className="boot-screen"><Mark /><span>Loading your workspace…</span></div>;
-  if (!authSession?.user) return new URLSearchParams(window.location.search).has("account") ? <AuthScreen /> : <GuestWorkspace onSignIn={() => { window.location.href = "/?account=1&mode=signup"; }} />;
+  const accountRoute = new URLSearchParams(window.location.search).has("account");
+  if (authPending && accountRoute) return <div className="boot-screen"><Mark /><span>Loading your workspace…</span></div>;
+  if (authPending && !accountRoute) return <GuestWorkspace onSignIn={() => { window.location.href = "/?account=1&mode=signup"; }} />;
+  if (!authSession?.user) return accountRoute ? <AuthScreen /> : <GuestWorkspace onSignIn={() => { window.location.href = "/?account=1&mode=signup"; }} />;
 
   return (
     <div className="app-shell">
