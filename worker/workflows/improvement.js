@@ -2,6 +2,7 @@ import { WorkflowEntrypoint } from "cloudflare:workers";
 import { planChallenge } from "../../src/domain/challenge.js";
 import { inspectArtifact } from "../../src/domain/quality-gates.js";
 import { assessWorkRisk } from "../../src/domain/risk-assessment.js";
+import { buildFinalReviewPrompt } from "../../src/domain/final-review.js";
 
 const isoNow = () => new Date().toISOString();
 
@@ -439,7 +440,16 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       const finalReviewText = await step.do("final-criteria-review", async () => callModel(this.env, {
         sessionId, stage: "FINAL_REVIEW",
         system: "You are the final quality reviewer for OUTPERFORM. Review the final artifact against the user's explicit requirements and constraints. You cannot execute code, browse the web, inspect external systems or independently verify facts in this step. Return ONLY JSON with assessment (string), criteriaCoverage (array of objects or strings), remainingRisks (array), and unverifiedClaims (array). Never mark anything externally verified.",
-        prompt: `OBJECTIVE: ${session.objective}\nTASK TYPE: ${session.task_type}\nTASK-SPECIFIC METHOD: ${taskMethod}\n\n${criteriaText}\n\nCONSTRAINTS:\n${constraintsText}\n\nHEURISTIC RISK ASSESSMENT:\n${JSON.stringify(riskAssessment)}\n\nDETERMINISTIC QUALITY GATE:\n${JSON.stringify(qualityGate)}\n\nFINAL ARTIFACT:\n${finalContent}\n\nAssess how well the artifact addresses each requirement and constraint, use the mechanical check results as limited signals rather than proof of correctness, identify remaining gaps and flag claims needing external verification.`,
+        prompt: buildFinalReviewPrompt({
+          objective: session.objective,
+          taskType: session.task_type,
+          taskMethod,
+          criteriaText,
+          constraints: acceptanceCriteria.constraints,
+          riskAssessment,
+          qualityGate,
+          finalContent
+        }),
         temperature: 0.1,
         maxTokens: 1800
       }));

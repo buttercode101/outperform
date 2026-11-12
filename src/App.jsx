@@ -359,6 +359,11 @@ export default function App() {
   const [detailLoading, setDetailLoading] = useState(false);
   const composerDialogRef = useDialogAccessibility(showComposer, () => setShowComposer(false));
   const reviewDialogRef = useDialogAccessibility(Boolean(selected), () => setSelected(null));
+  const detailRequestRef = useRef(0);
+
+  useEffect(() => {
+    if (!selected) detailRequestRef.current += 1;
+  }, [selected]);
 
 
 
@@ -571,6 +576,7 @@ export default function App() {
   }
 
   async function openSession(session) {
+    const requestId = ++detailRequestRef.current;
     setRerunFeedback("");
     setDetailLoading(true);
     setSelected({ session, detail: null });
@@ -587,6 +593,7 @@ export default function App() {
         const artifact = await artifactResponse.json();
         loaded[item.id] = artifact.content || "";
       }));
+      if (requestId !== detailRequestRef.current) return;
       setArtifactContents(loaded);
       const integrity = {};
       for (const event of detail.events || []) {
@@ -600,9 +607,9 @@ export default function App() {
       setCompareMode(false);
       setSelected({ session, detail });
     } catch (e) {
-      setNotice(e.message);
+      if (requestId === detailRequestRef.current) setNotice(e.message);
     } finally {
-      setDetailLoading(false);
+      if (requestId === detailRequestRef.current) setDetailLoading(false);
     }
   }
 
