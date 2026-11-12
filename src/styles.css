@@ -35,7 +35,7 @@ button:disabled{cursor:not-allowed;opacity:.45}
 .eyebrow{display:flex;align-items:center;gap:10px;color:#607460;font-size:10px;font-weight:700;letter-spacing:.16em}
 .eyebrow-line{width:22px;height:1px;background:#7a9179}
 .hero h1{font:600 clamp(36px,4.4vw,58px)/1.12 Manrope,sans-serif;letter-spacing:-.055em;margin:23px 0 16px;color:#20251f}
-.hero-copy{max-width:540px;color:#73766e;font-size:15px;line-height:1.8;margin:0 0 27px}
+.hero-copy{max-width:540px;color:#62695f;font-size:15px;line-height:1.8;margin:0 0 27px}
 .primary-button{height:46px;border:0;border-radius:4px;background:var(--green);color:white;display:inline-flex;align-items:center;justify-content:center;gap:12px;padding:0 17px;font-size:12px;font-weight:600;transition:background .18s,transform .18s}
 .primary-button:hover{background:var(--green-dark);transform:translateY(-1px)}
 .principles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:26px;padding:26px 0 34px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
@@ -52,10 +52,10 @@ button:disabled{cursor:not-allowed;opacity:.45}
 .empty-symbol{width:44px;height:44px;border:1px solid #dce1d8;background:#eef1eb;border-radius:50%;display:grid;place-items:center}
 .empty-symbol .brand-mark{transform:scale(.85)}
 .empty-state h3{font:600 15px Manrope,sans-serif;margin:17px 0 7px}
-.empty-state p{font-size:12px;color:#82847c;max-width:390px;line-height:1.65;margin:0}
+.empty-state p{font-size:12px;color:#62695f;max-width:390px;line-height:1.65;margin:0}
 .text-button{display:inline-flex;align-items:center;gap:9px;margin-top:17px;border:0;background:transparent;color:#45634b;font-size:12px;font-weight:700;padding:6px}
 .text-button:hover{color:#263f2d}
-.footer{border-top:1px solid var(--line);padding:19px 0 25px;display:flex;justify-content:space-between;color:#70766d;font-size:9px;letter-spacing:.08em}
+.footer{border-top:1px solid var(--line);padding:19px 0 25px;display:flex;justify-content:space-between;color:#62695f;font-size:9px;letter-spacing:.08em}
 .modal-backdrop{position:fixed;inset:0;background:rgba(26,31,26,.36);z-index:5;display:grid;place-items:center;padding:20px}
 .composer{width:min(100%,570px);max-height:min(92vh,760px);overflow:auto;background:#fbfaf7;border:1px solid #e3e2db;box-shadow:0 22px 80px rgba(24,30,24,.2);padding:30px}
 .composer-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:26px}
@@ -360,11 +360,11 @@ button:disabled{cursor:not-allowed;opacity:.45}
 .diff-line{display:block;padding:0 12px;min-height:1.65em;overflow-wrap:anywhere;white-space:pre-wrap}
 .diff-added{background:#edf5eb;color:#315d37}
 .diff-removed{background:#fbefed;color:#8c3d36}
-.diff-context{color:#92988f}
+.diff-context{color:#62695f}
 .diff-summary{color:#6d7469;font-family:inherit;white-space:pre-wrap}
 @media(max-width:520px){.comparison-diff-header{align-items:flex-start;flex-direction:column;gap:4px}.comparison-diff pre{max-height:260px}}
 
-.diff-line-numbers{display:inline-block;min-width:52px;margin-right:8px;color:#a0a69b;font-size:9px;font-variant-numeric:tabular-nums;text-align:right;user-select:none}
+.diff-line-numbers{display:inline-block;min-width:52px;margin-right:8px;color:#62695f;font-size:9px;font-variant-numeric:tabular-nums;text-align:right;user-select:none}
 .comparison-selectors select{min-width:0;max-width:100%;width:100%;padding:10px 30px 10px 10px;border:1px solid #dfe2d9;background:#fff;color:#30372e;font:inherit;font-size:11px;border-radius:2px}
 .comparison-diff{overflow:hidden}
 .comparison-diff pre{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain}
