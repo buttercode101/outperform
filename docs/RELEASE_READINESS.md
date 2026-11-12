@@ -4,13 +4,13 @@ Updated: 12 November 2026 — takeover verification
 
 ## Latest production takeover verification
 
-- Production deployment #203 (commit c38833509643dd213c2a581b361d820a7d312ee9) completed successfully.
+- Production deployment #204 (commit 5b784d7331468eabdfc5176eea1a7cfd54281476) completed successfully; it includes the Worker normalizer import hotfix.
 - The deployment no longer exports the live D1 database. It performs a read-only check of the production D1 backend and current Time Travel recovery bookmark before migrations and deployment.
 - Existing private R2 SQL snapshots remain in place. The earlier snapshot workflow verified import into an isolated local D1 database and byte-for-byte R2 download integrity.
 - A historical completed session with a missing baseline record was repaired additively. Its original artifact IDs and content were preserved; the baseline was reconstructed from persisted session inputs; and a BASELINE_RECONSTRUCTED event explicitly records that it is not a byte-for-byte recovery. A private R2 recovery manifest was saved and PRAGMA foreign_key_check returned no violations.
 - Authenticated production E2E run 43204844984: PASS. It completed primary/challenger generation, adjudication, final improvement, structured criteria review, human approval, export, tenant isolation and account deletion.
 - E2E evidence: four artifacts (baseline 1, primary 2, challenger 3, final 4), four integrity passes, five model-usage records, six deterministic quality-gate records, foreign session/artifact requests returned 404, anonymous private API requests returned 401, and zero browser errors.
-- Post-deployment browser QA run 43205927935: PASS. Guest entry tested at 320, 375, 768, 1120 and 1440 CSS-pixel widths in light and dark modes; authentication and theme persistence tested; empty, saved, import and oversize-file error states exercised.
+- Browser QA run 43205927935 passed guest entry at 320, 375, 768, 1120 and 1440 CSS-pixel widths in light and dark modes; authentication and theme persistence; empty, saved, import and oversize-file error states. The first post-deployment #204 run (43207146855) exposed a race in the test harness: it asserted file-import text before FileReader completed. The harness now waits for the imported value; a rerun is pending.
 - Production client bundle measured at 324.64 kB JavaScript (99.95 kB gzip) and 47.48 kB CSS (9.67 kB gzip); total Worker upload was 1,586.46 KiB (344.45 KiB gzip). This is a bundle-size measurement, not a before/after runtime-latency comparison; a historical performance baseline is not available.
 - Authenticated E2E screenshots cover desktop and mobile overview and review surfaces in both light and dark themes. Screenshots were visually inspected after the run.
 - E2E cleanup was independently checked in production D1: zero temporary E2E users, sessions or artifacts remained.
@@ -18,7 +18,7 @@ Updated: 12 November 2026 — takeover verification
 ### Remaining release gaps — not represented as verified
 - **Service worker / offline support:** no service worker, registration or web app manifest exists in the repository. Offline behaviour has not been implemented or verified.
 - **Android wrapper:** no Android project, Capacitor configuration or Gradle wrapper exists in the repository. No APK/AAB has been built or tested.
-- **Provider fallback regression:** deployment #203 contains a missing import in the new normalizer path, so AI session generation is currently failing before model calls. PR #9 fixes the import and adds a regression test; it must pass Quality, deploy, and complete a fresh authenticated E2E before this blocker is cleared.
+- **Provider fallback verification:** PR #9 fixed the missing normalizer import, added a regression test and deployed in #204. Authenticated production E2E run 43207171880 is pending to verify the fallback and full workflow against this deployment.
 - External integrations, email delivery, formal public terms/privacy publication and broader independent benchmark coverage remain separate release-readiness work.
 
 ## Implemented in the repository
