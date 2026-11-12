@@ -66,14 +66,20 @@ export function parseAdjudicationResponse(content) {
   }
   const normalizeList = (items) => items
     .filter(item => typeof item === "string" && item.trim())
-    .slice(0, 5)
+    .slice(0, 3)
     .map(item => item.trim());
+  const strengths = normalizeList(value.strengths);
+  const risks = normalizeList(value.risks);
+  const improvementIdeas = normalizeList(value.improvementIdeas);
+  if (!strengths.length || !improvementIdeas.length) {
+    throw new Error("Adjudication must include at least one strength and one improvement idea.");
+  }
   return {
     preferred: value.preferred,
     rationale,
-    strengths: normalizeList(value.strengths),
-    risks: normalizeList(value.risks),
-    improvementIdeas: normalizeList(value.improvementIdeas),
+    strengths,
+    risks,
+    improvementIdeas,
     parsed: true
   };
 }
