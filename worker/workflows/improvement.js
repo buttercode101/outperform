@@ -414,8 +414,9 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         system: "You are an independent evaluator. Compare the candidates against the stated objective and task type. Return ONLY valid JSON with keys preferred (primary|challenger), rationale, strengths (array), risks (array), improvementIdeas (array). Do not claim external verification, factual validation, code execution or test results. If uncertain, prefer primary and explain why.",
         prompt: `OBJECTIVE: ${session.objective}\nTASK TYPE: ${session.task_type}\nTASK-SPECIFIC METHOD: ${taskMethod}\n${criteriaText}\n\nPRIMARY CANDIDATE:\n${primaryContent}\n\nCHALLENGER CANDIDATE:\n${challengerArtifact ? challengerContent : "(No challenger candidate was produced)"}\n\nCompare for correctness, completeness, clarity, constraint adherence and likely usefulness. This is a model evaluation, not external verification.`,
         temperature: 0.1,
-        maxTokens: 1800,
-        responseFormat: { type: "json_object" }
+        maxTokens: 1800
+        // DeepSeek V4 Flash returned empty content for this adjudication JSON-mode request in production.
+        // The strict JSON prompt plus extractJsonObject parser avoids a duplicate provider call.
       })
     );
     const evaluation = parseJudgeResponse(evaluationText);

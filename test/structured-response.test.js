@@ -44,3 +44,14 @@ test("workflow imports the structured response helpers it calls", () => {
   const workerSource = readFileSync(new URL("../worker/workflows/improvement.js", import.meta.url), "utf8");
   assert.match(workerSource, /import \{ extractJsonObject, normalizeModelContent \} from ["']\.\.\/\.\.\/src\/domain\/structured-response\.js["']/);
 });
+
+test("avoids duplicate JSON-mode calls for the known incompatible adjudication model", () => {
+  const workerSource = readFileSync(new URL("../worker/workflows/improvement.js", import.meta.url), "utf8");
+  const adjudicationStart = workerSource.indexOf('stage: "ADJUDICATION"');
+  const finalReviewStart = workerSource.indexOf('stage: "FINAL_REVIEW"');
+  assert.ok(adjudicationStart >= 0 && finalReviewStart > adjudicationStart);
+  const adjudicationCall = workerSource.slice(adjudicationStart, finalReviewStart);
+  const finalReviewCall = workerSource.slice(finalReviewStart);
+  assert.doesNotMatch(adjudicationCall, /responseFormat:\s*\{\s*type:\s*"json_object"/);
+  assert.match(finalReviewCall, /responseFormat:\s*\{\s*type:\s*"json_object"/);
+});
