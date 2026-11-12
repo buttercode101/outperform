@@ -1,5 +1,6 @@
 export function extractJsonObject(content) {
   if (typeof content !== "string") return null;
+  if (content.trimStart().startsWith("[")) return null;
   const start = content.indexOf("{");
   if (start < 0) return null;
 
