@@ -12,8 +12,22 @@ const contextA = await browser.newContext({ viewport: { width: 1440, height: 100
 const pageA = await contextA.newPage();
 await pageA.emulateMedia({ colorScheme: "dark" });
 const browserErrors = [];
-pageA.on("pageerror", error => browserErrors.push(error.message));
-pageA.on("console", message => { if (message.type() === "error") browserErrors.push(message.text()); });
+function monitorBrowserErrors(page) {
+  page.on("pageerror", error => browserErrors.push(error.message));
+  page.on("console", message => {
+    if (message.type() !== "error") return;
+    if (/Failed to load resource: the server responded with a status of 40[14]/.test(message.text())) return;
+    browserErrors.push(message.text());
+  });
+  page.on("response", response => {
+    const status = response.status();
+    const path = new URL(response.url()).pathname;
+    if (status >= 500 || (status >= 400 && (!path.startsWith("/api/") || ![401, 404].includes(status)))) {
+      browserErrors.push(`HTTP ${status} ${path}`);
+    }
+  });
+}
+monitorBrowserErrors(pageA);
 const autoConfirm = async dialog => {
   if (dialog.type() === "prompt") await dialog.accept("DELETE MY ACCOUNT");
   else await dialog.accept();
@@ -276,8 +290,7 @@ try {
   contextB = await browser.newContext({ viewport: { width: 1440, height: 1000 }, acceptDownloads: true });
   pageB = await contextB.newPage();
   pageB.on("dialog", autoConfirm);
-  pageB.on("pageerror", error => browserErrors.push(error.message));
-  pageB.on("console", message => { if (message.type() === "error") browserErrors.push(message.text()); });
+  monitorBrowserErrors(pageB);
   userBId = await signUp(pageB, "OUTPERFORM E2E B", emailB);
 
   const isolation = await pageB.evaluate(async ({ targetSessionId, targetArtifactId }) => {
