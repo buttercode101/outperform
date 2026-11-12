@@ -83,6 +83,7 @@ try {
   await page.locator('input[type="file"]').setInputFiles({ name: "oversized.txt", mimeType: "text/plain", buffer: Buffer.alloc(100001, 97) });
   await page.getByText(/larger than 100 KB/).waitFor({ state: "visible" });
   await page.locator('input[type="file"]').setInputFiles({ name: "qa-context.md", mimeType: "text/markdown", buffer: Buffer.from("Imported context for browser-only quality verification.") });
+  await page.waitForFunction(() => document.querySelector("#guest-context")?.value.includes("Imported context"), null, { timeout: 10000 });
   assert.match(await page.locator("#guest-context").inputValue(), /Imported context/);
   const objective = `Browser QA brief ${new Date().toISOString()}`;
   await page.locator("#guest-objective").fill(objective);
