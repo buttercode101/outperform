@@ -102,7 +102,7 @@ try {
     viewportWidths: [320, 375, 768, 1120, 1440],
     guestWorkflow: ["create", "local-save", "reload-persistence", "edit", "export-brief", "export-prompt", "delete"],
     browserErrors: errors,
-    screenshots: [320, 375, 768, 1120, 1440].map(width => `${outputDir}/guest-${width}.png`)
+    screenshots: [320, 375, 768, 1120, 1440].flatMap(width => [`${outputDir}/guest-light-${width}.png`, `${outputDir}/guest-dark-${width}.png`])
   }, null, 2));
 } finally {
   await browser.close();
