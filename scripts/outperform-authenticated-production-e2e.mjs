@@ -1,3 +1,4 @@
+// Regression run against deployment 205: verify prompt-only adjudication and structured final-review output.
 // Regression run against deployment 204: verify model-content normalization and JSON-mode fallback end to end.
 // Regression run against deployment 203: exercise provider structured-response fallback and full approval lifecycle.
 import { chromium } from "playwright";
