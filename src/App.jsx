@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { authClient } from "./lib/auth-client.js";
 import { assessBriefCompleteness } from "./domain/brief-readiness.js";
+import { buildGuestPrompt } from "./domain/guest-prompt.js";
 
 const taskTypes = [
   { value: "CODE", label: "Software & code" },
@@ -190,6 +191,18 @@ function GuestWorkspace({ onSignIn }) {
     URL.revokeObjectURL(url);
   }
 
+  function exportPrompt(item) {
+    const markdown = buildGuestPrompt(item);
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "outperform-ready-to-use-prompt.md";
+    link.click();
+    URL.revokeObjectURL(url);
+    setNotice("Your reusable improvement prompt was exported. It was generated locally and has not been uploaded.");
+  }
+
   return (
     <main className="guest-screen">
       <header className="guest-header">
@@ -228,7 +241,7 @@ function GuestWorkspace({ onSignIn }) {
         <section className="guest-library">
           <div className="section-heading"><div><span className="section-kicker">YOUR DEVICE</span><h2>Saved briefs</h2></div><span className="empty-count">{items.length}</span></div>
           {items.length === 0 ? <div className="empty-state"><div className="empty-symbol"><Mark /></div><h3>Your work, your starting point.</h3><p>Create a brief. It will be saved locally on this device, without registration.</p></div> :
-            <div className="session-list">{items.map(item => <article className="session-row" key={item.id}><div className="session-main"><span className="session-type">{item.taskType}</span><h3>{item.objective}</h3><span className="session-date">{new Date(item.createdAt).toLocaleString()}</span></div><div className="session-actions"><button className="small-action" onClick={() => editBrief(item)}>Edit</button><button className="small-action" onClick={() => exportBrief(item)}>Export <Icon name="arrow" /></button><button className="small-action danger-action" onClick={() => deleteBrief(item.id)}>Delete</button></div></article>)}</div>}
+            <div className="session-list">{items.map(item => <article className="session-row" key={item.id}><div className="session-main"><span className="session-type">{item.taskType}</span><h3>{item.objective}</h3><span className="session-date">{new Date(item.createdAt).toLocaleString()}</span></div><div className="session-actions"><button className="small-action" onClick={() => editBrief(item)}>Edit</button><button className="small-action" onClick={() => exportBrief(item)}>Export brief</button><button className="small-action" onClick={() => exportPrompt(item)}>Export AI prompt <Icon name="arrow" /></button><button className="small-action danger-action" onClick={() => deleteBrief(item.id)}>Delete</button></div></article>)}</div>}
         </section>
       </section>
       <section className="guest-upgrade">
