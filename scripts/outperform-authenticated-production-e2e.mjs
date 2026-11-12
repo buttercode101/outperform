@@ -206,8 +206,12 @@ try {
   assert.ok(qualityGateCount >= 4, "Deterministic quality gate must expose its individual checks.");
 
   await pageA.screenshot({ path: outputDir + "/review-dark-desktop.png", fullPage: true });
+  await pageA.getByRole("button", { name: "Close" }).click();
   await pageA.getByRole("button", { name: "Switch to light mode" }).click();
   assert.equal(await pageA.locator("html").getAttribute("data-theme"), "light");
+  await sessionRow.getByRole("button", { name: "Review" }).click();
+  await pageA.locator(".review-panel").waitFor({ state: "visible", timeout: 30000 });
+  await pageA.locator(".final-review-summary").waitFor({ state: "visible", timeout: 20000 });
   await pageA.screenshot({ path: outputDir + "/review-light-desktop.png", fullPage: true });
   await pageA.setViewportSize({ width: 375, height: 850 });
   const mobileReviewDimensions = await pageA.evaluate(() => ({
@@ -219,8 +223,11 @@ try {
   assert.ok(mobileReviewDimensions.document <= 376, "Review workspace must not overflow at 375px: " + JSON.stringify(mobileReviewDimensions));
   assert.ok(mobileReviewDimensions.panel <= mobileReviewDimensions.panelClient + 1, "Review panel content must not overflow horizontally.");
   await pageA.screenshot({ path: outputDir + "/review-light-mobile.png", fullPage: true });
+  await pageA.getByRole("button", { name: "Close" }).click();
   await pageA.getByRole("button", { name: "Switch to dark mode" }).click();
   assert.equal(await pageA.locator("html").getAttribute("data-theme"), "dark");
+  await sessionRow.getByRole("button", { name: "Review" }).click();
+  await pageA.locator(".review-panel").waitFor({ state: "visible", timeout: 30000 });
   await pageA.screenshot({ path: outputDir + "/review-dark-mobile.png", fullPage: true });
   await pageA.setViewportSize({ width: 1440, height: 1000 });
 
