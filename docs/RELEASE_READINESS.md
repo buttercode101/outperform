@@ -11,6 +11,7 @@ Updated: 12 November 2026 — takeover verification
 - Authenticated production E2E run 43204844984: PASS. It completed primary/challenger generation, adjudication, final improvement, structured criteria review, human approval, export, tenant isolation and account deletion.
 - E2E evidence: four artifacts (baseline 1, primary 2, challenger 3, final 4), four integrity passes, five model-usage records, six deterministic quality-gate records, foreign session/artifact requests returned 404, anonymous private API requests returned 401, and zero browser errors.
 - Post-deployment browser QA run 43205927935: PASS. Guest entry tested at 320, 375, 768, 1120 and 1440 CSS-pixel widths in light and dark modes; authentication and theme persistence tested; empty, saved, import and oversize-file error states exercised.
+- Production client bundle measured at 324.64 kB JavaScript (99.95 kB gzip) and 47.48 kB CSS (9.67 kB gzip); total Worker upload was 1,586.46 KiB (344.45 KiB gzip). This is a bundle-size measurement, not a before/after runtime-latency comparison; a historical performance baseline is not available.
 - Authenticated E2E screenshots cover desktop and mobile overview and review surfaces in both light and dark themes. Screenshots were visually inspected after the run.
 - E2E cleanup was independently checked in production D1: zero temporary E2E users, sessions or artifacts remained.
 
