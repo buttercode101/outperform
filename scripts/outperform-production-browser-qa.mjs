@@ -28,8 +28,10 @@ try {
   assert.equal(await page.locator("html").getAttribute("data-theme"), "dark", "System dark preference should be applied on first visit.");
   const darkBackground = await page.locator(".guest-screen").evaluate(element => getComputedStyle(element).backgroundColor);
   assert.ok(Number(darkBackground.match(/[0-9]+/)?.[0]) < 50, `Dark theme surface is not dark: ${darkBackground}`);
+  await page.screenshot({ path: `${outputDir}/guest-system-dark-1440.png`, fullPage: true });
 
   await page.getByRole("button", { name: "Switch to light mode" }).click();
+  await page.waitForTimeout(220);
   assert.equal(await page.locator("html").getAttribute("data-theme"), "light");
   await page.reload({ waitUntil: "networkidle" });
   await page.locator(".guest-hero h1").waitFor({ state: "visible" });
@@ -55,8 +57,12 @@ try {
     assert.ok(dimensions.libraryRight <= width + 1, `Saved brief panel overflows at ${width}px`);
     await page.screenshot({ path: `${outputDir}/guest-light-${width}.png`, fullPage: true });
     await page.getByRole("button", { name: "Switch to dark mode" }).click();
+    await page.waitForTimeout(220);
+    const settledDark = await page.locator(".guest-screen").evaluate(element => getComputedStyle(element).backgroundColor);
+    assert.ok(Number(settledDark.match(/[0-9]+/)?.[0]) < 50, `Dark theme did not settle at ${width}px: ${settledDark}`);
     await page.screenshot({ path: `${outputDir}/guest-dark-${width}.png`, fullPage: true });
     await page.getByRole("button", { name: "Switch to light mode" }).click();
+    await page.waitForTimeout(220);
   }
 
   await page.goto(baseURL + "/?account=1&mode=signup", { waitUntil: "networkidle" });
@@ -65,6 +71,7 @@ try {
   await page.screenshot({ path: `${outputDir}/auth-light-375.png`, fullPage: true });
   assert.equal(await page.locator("html").getAttribute("data-theme"), "light");
   await page.getByRole("button", { name: "Switch to dark mode" }).click();
+  await page.waitForTimeout(220);
   assert.equal(await page.locator("html").getAttribute("data-theme"), "dark", "Theme control should also be available on authentication.");
   await page.screenshot({ path: `${outputDir}/auth-dark-375.png`, fullPage: true });
   await page.reload({ waitUntil: "networkidle" });
