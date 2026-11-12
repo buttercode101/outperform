@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: outperform-production-operations
+  cancel-in-progress: false
+
 jobs:
   authenticated-production:
     runs-on: ubuntu-24.04
