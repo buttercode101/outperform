@@ -1,0 +1,39 @@
+name: Authenticated production E2E
+
+on:
+  push:
+    branches:
+      - e2e/production-authenticated
+
+permissions:
+  contents: read
+
+jobs:
+  authenticated-production:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out test harness
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install application dependencies
+        run: npm install --no-audit --no-fund
+      - name: Install Playwright
+        run: npm install --no-save --no-package-lock playwright@1.58.2
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run real authenticated production workflow
+        run: node scripts/outperform-authenticated-production-e2e.mjs
+        env:
+          OUTPERFORM_URL: https://outperform.buttercoder-dev.workers.dev
+      - name: Upload authenticated workflow screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: outperform-authenticated-production-e2e
+          path: artifacts/production-e2e/
+          if-no-files-found: warn
+          retention-days: 7
