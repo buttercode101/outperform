@@ -14,6 +14,28 @@ const taskTypes = [
   { value: "OTHER", label: "Something else" }
 ];
 
+function useThemePreference() {
+  const [theme, setTheme] = useState(() => {
+    let stored = null;
+    try { stored = window.localStorage.getItem("outperform_theme"); } catch {}
+    const selected = stored === "light" || stored === "dark"
+      ? stored
+      : (window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light");
+    document.documentElement.dataset.theme = selected;
+    return selected;
+  });
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+    const themeColor = document.querySelector('meta[name="theme-color"]');
+    if (themeColor) themeColor.setAttribute("content", theme === "dark" ? "#111712" : "#f4f3ef");
+    try { window.localStorage.setItem("outperform_theme", theme); } catch {}
+  }, [theme]);
+
+  return [theme, () => setTheme((current) => current === "dark" ? "light" : "dark")];
+}
+
 function useDialogAccessibility(isOpen, onClose) {
   const dialogRef = useRef(null);
   const onCloseRef = useRef(onClose);
@@ -96,12 +118,29 @@ function Icon({ name }) {
     layers: <><path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 12 9 5 9-5M3 16l9 5 9-5" /></>,
     shield: <><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z" /><path d="m9 12 2 2 4-4" /></>,
     activity: <><path d="M3 12h4l3-8 4 16 3-8h4" /></>,
-    book: <><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v17H6.5A2.5 2.5 0 0 0 4 22V5.5Z" /><path d="M4 17a2.5 2.5 0 0 1 2.5-2.5H20" /></>
+    book: <><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v17H6.5A2.5 2.5 0 0 0 4 22V5.5Z" /><path d="M4 17a2.5 2.5 0 0 1 2.5-2.5H20" /></>,
+    sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42" /></>,
+    moon: <path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.804a6.5 6.5 0 0 0 8.27 8.27c.344-.215.826-.003.801.398Z" />
   };
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
 
-function AuthScreen() {
+function ThemeToggle({ theme, onToggle, className = "" }) {
+  const nextTheme = theme === "dark" ? "light" : "dark";
+  return (
+    <button
+      className={`theme-toggle ${className}`.trim()}
+      type="button"
+      onClick={onToggle}
+      aria-label={`Switch to ${nextTheme} mode`}
+      title={`Switch to ${nextTheme} mode`}
+    >
+      <Icon name={theme === "dark" ? "sun" : "moon"} />
+    </button>
+  );
+}
+
+function AuthScreen({ theme, onToggleTheme }) {
   const [mode, setMode] = useState(new URLSearchParams(window.location.search).get("mode") === "signup" ? "signup" : "signin");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -128,6 +167,7 @@ function AuthScreen() {
   return (
     <main className="auth-screen">
       <a className="brand auth-brand" href="/"><Mark /><span>OUTPERFORM</span></a>
+      <ThemeToggle theme={theme} onToggle={onToggleTheme} className="auth-theme-toggle" />
       <section className="auth-panel">
         <span className="section-kicker">PRIVATE WORKSPACE</span>
         <h1>{mode === "signup" ? "Create your workspace." : "Welcome back."}</h1>
@@ -160,7 +200,7 @@ function Status({ value }) {
 }
 
 
-function GuestWorkspace({ onSignIn }) {
+function GuestWorkspace({ onSignIn, theme, onToggleTheme }) {
   const [items, setItems] = useState(() => {
     try {
       const stored = JSON.parse(localStorage.getItem("outperform_guest_work") || "[]");
@@ -271,7 +311,7 @@ function GuestWorkspace({ onSignIn }) {
     <main className="guest-screen">
       <header className="guest-header">
         <a className="brand" href="/"><Mark /><span>OUTPERFORM</span></a>
-        <div className="guest-actions"><span className="guest-label">GUEST MODE · SAVED ON THIS DEVICE</span><button className="secondary-button" onClick={onSignIn}>Sign in / Create account</button></div>
+        <div className="guest-actions"><span className="guest-label">GUEST MODE · SAVED ON THIS DEVICE</span><ThemeToggle theme={theme} onToggle={onToggleTheme} /><button className="secondary-button" onClick={onSignIn}>Sign in / Create account</button></div>
       </header>
       <section className="guest-hero">
         <span className="eyebrow"><span className="eyebrow-line" /> THE WORK IMPROVEMENT & PROOF ENGINE</span>
@@ -318,6 +358,7 @@ function GuestWorkspace({ onSignIn }) {
 }
 
 export default function App() {
+  const [theme, toggleTheme] = useThemePreference();
   const { data: authSession, isPending: authPending } = authClient.useSession();
   const [health, setHealth] = useState("checking");
   const [sessions, setSessions] = useState([]);
@@ -820,8 +861,8 @@ export default function App() {
 
   const accountRoute = new URLSearchParams(window.location.search).has("account");
   if (authPending && accountRoute) return <div className="boot-screen"><Mark /><span>Loading your workspace…</span></div>;
-  if (authPending && !accountRoute) return <GuestWorkspace onSignIn={() => { window.location.href = "/?account=1&mode=signup"; }} />;
-  if (!authSession?.user) return accountRoute ? <AuthScreen /> : <GuestWorkspace onSignIn={() => { window.location.href = "/?account=1&mode=signup"; }} />;
+  if (authPending && !accountRoute) return <GuestWorkspace onSignIn={() => { window.location.href = "/?account=1&mode=signup"; }} theme={theme} onToggleTheme={toggleTheme} />;
+  if (!authSession?.user) return accountRoute ? <AuthScreen theme={theme} onToggleTheme={toggleTheme} /> : <GuestWorkspace onSignIn={() => { window.location.href = "/?account=1&mode=signup"; }} theme={theme} onToggleTheme={toggleTheme} />;
 
   return (
     <div className="app-shell">
@@ -843,7 +884,7 @@ export default function App() {
       <main className="main-content">
         <header className="topbar">
           <div className="breadcrumb">Workspace <span>/</span> {activeView === "overview" ? "Overview" : activeView === "playbooks" ? "Playbooks" : "Performance"}</div>
-          <div className="topbar-right"><span className="private-label"><Icon name="shield" /> Private workspace</span><span className="user-email">{authSession.user.email}</span><button className="delete-account-button" disabled={accountDeleteBusy} onClick={deleteAccount}>{accountDeleteBusy ? "Deleting…" : "Delete account"}</button><button className="signout-button" onClick={async () => { await authClient.signOut(); window.location.replace("/"); }}>Sign out</button><div className="avatar">{(authSession.user.name || "O").slice(0,1).toUpperCase()}</div></div>
+          <div className="topbar-right"><ThemeToggle theme={theme} onToggle={toggleTheme} /><span className="private-label"><Icon name="shield" /> Private workspace</span><span className="user-email">{authSession.user.email}</span><button className="delete-account-button" disabled={accountDeleteBusy} onClick={deleteAccount}>{accountDeleteBusy ? "Deleting…" : "Delete account"}</button><button className="signout-button" onClick={async () => { await authClient.signOut(); window.location.replace("/"); }}>Sign out</button><div className="avatar">{(authSession.user.name || "O").slice(0,1).toUpperCase()}</div></div>
         </header>
 
         {guestBriefs.length > 0 && !guestImportDismissed && <section className="guest-import-banner"><div><span className="section-kicker">LOCAL WORK FOUND</span><strong>{guestBriefs.length} guest brief{guestBriefs.length === 1 ? "" : "s"} available to import</strong><p>Bring your saved device-only briefs into this private workspace. Import creates saved sessions only; it does not run AI or upload anything until you choose.</p></div><div><button className="secondary-button" disabled={importBusy} onClick={() => setGuestImportDismissed(true)}>Keep on this device</button><button className="primary-button" disabled={importBusy} onClick={importGuestBriefs}>{importBusy ? "Importing…" : "Import briefs"} <Icon name="arrow" /></button></div></section>}
