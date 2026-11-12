@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { extractJsonObject, normalizeModelContent } from "../src/domain/structured-response.js";
+import { extractJsonObject, normalizeModelContent, parseAdjudicationResponse } from "../src/domain/structured-response.js";
 
 test("extracts JSON from a fenced response", () => {
   assert.deepEqual(extractJsonObject('Here is the review:\n```json\n{"assessment":"Good","criteriaCoverage":["A"]}\n```'), {
@@ -54,4 +54,28 @@ test("avoids duplicate JSON-mode calls for the known incompatible adjudication m
   const finalReviewCall = workerSource.slice(finalReviewStart);
   assert.doesNotMatch(adjudicationCall, /responseFormat:\s*\{\s*type:\s*"json_object"/);
   assert.match(finalReviewCall, /responseFormat:\s*\{\s*type:\s*"json_object"/);
+});
+
+test("parses complete adjudication responses with explicit candidate choice", () => {
+  const parsed = parseAdjudicationResponse('Evaluator output: {"preferred":"challenger","rationale":"The challenger satisfies more mandatory requirements.","strengths":["Clearer structure"],"risks":["One source remains unverified"],"improvementIdeas":["Add source verification"]} End.');
+  assert.equal(parsed.preferred, "challenger");
+  assert.equal(parsed.parsed, true);
+  assert.equal(parsed.rationale, "The challenger satisfies more mandatory requirements.");
+  assert.deepEqual(parsed.strengths, ["Clearer structure"]);
+  assert.deepEqual(parsed.risks, ["One source remains unverified"]);
+  assert.deepEqual(parsed.improvementIdeas, ["Add source verification"]);
+});
+
+test("rejects incomplete or invalid adjudication responses instead of silently preferring primary", () => {
+  assert.throws(() => parseAdjudicationResponse('{"preferred":"primary","rationale":"Incomplete","strengths":[]}'), /complete JSON object|arrays/);
+  assert.throws(() => parseAdjudicationResponse('{"preferred":"other","rationale":"No","strengths":[],"risks":[],"improvementIdeas":[]}'), /preferred set to primary or challenger/);
+  assert.throws(() => parseAdjudicationResponse('{"preferred":"primary","rationale":"Cut off","strengths":["A"]'), /complete JSON object/);
+});
+
+test("Worker validates adjudication inside the retryable workflow step and records its result", () => {
+  const workerSource = readFileSync(new URL("../worker/workflows/improvement.js", import.meta.url), "utf8");
+  assert.match(workerSource, /import \{ extractJsonObject, normalizeModelContent, parseAdjudicationResponse \}/);
+  assert.match(workerSource, /const evaluation = await step\.do\("independent-adjudication", async \(\) => \{/);
+  assert.match(workerSource, /recordEvent\(this\.env\.DB, sessionId, "ADJUDICATION_COMPLETED"/);
+  assert.doesNotMatch(workerSource, /function parseJudgeResponse\(/);
 });
