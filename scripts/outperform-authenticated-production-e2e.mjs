@@ -1,3 +1,4 @@
+// Regression coverage: verify every persisted artifact and its parent chain, not only the visible tabs.
 import { chromium } from "playwright";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
