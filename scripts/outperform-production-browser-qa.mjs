@@ -73,6 +73,10 @@ try {
   await page.goto(baseURL, { waitUntil: "networkidle" });
 
   await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.locator('input[type="file"]').setInputFiles({ name: "oversized.txt", mimeType: "text/plain", buffer: Buffer.alloc(100001, 97) });
+  await page.getByText(/larger than 100 KB/).waitFor({ state: "visible" });
+  await page.locator('input[type="file"]').setInputFiles({ name: "qa-context.md", mimeType: "text/markdown", buffer: Buffer.from("Imported context for browser-only quality verification.") });
+  assert.match(await page.locator("#guest-context").inputValue(), /Imported context/);
   const objective = `Browser QA brief ${new Date().toISOString()}`;
   await page.locator("#guest-objective").fill(objective);
   await page.locator("#guest-requirements").fill("Preserve existing work\nKeep guest data local\nExport a usable prompt");
