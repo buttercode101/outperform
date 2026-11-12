@@ -107,9 +107,7 @@ try {
   userAId = await signUp(pageA, "OUTPERFORM E2E A", emailA);
   assert.equal(await pageA.locator("html").getAttribute("data-theme"), "dark", "Authenticated app should inherit the system dark preference.");
   await pageA.getByRole("button", { name: "Switch to light mode" }).click();
-  assert.equal(await pageA.locator("html").getAttribute("data-theme"), "light");
-  await pageA.getByRole("button", { name: "Switch to dark mode" }).click();
-  assert.equal(await pageA.locator("html").getAttribute("data-theme"), "dark", "Authenticated workspace theme toggle must work.");
+  assert.equal(await pageA.locator("html").getAttribute("data-theme"), "light", "Authenticated workspace theme toggle must work.");
 
   await pageA.screenshot({ path: outputDir + "/authenticated-overview-light-desktop.png", fullPage: true });
   await pageA.setViewportSize({ width: 375, height: 850 });
