@@ -421,16 +421,18 @@ async function handleApi(request, env) {
       }
 
       if (action === null && request.method === "GET") {
-        const [artifacts, requirements, constraints, events] = await Promise.all([
+        const [artifacts, requirements, constraints, events, contextObject] = await Promise.all([
           env.DB.prepare("SELECT id, kind, object_key, content_hash, parent_artifact_id, created_by, version, created_at FROM artifacts WHERE session_id = ? ORDER BY version DESC").bind(sessionId).all(),
           env.DB.prepare("SELECT id, description, source, mandatory, verification_method FROM requirements WHERE session_id = ? ORDER BY created_at").bind(sessionId).all(),
           env.DB.prepare("SELECT id, description, constraint_type, created_at FROM session_constraints WHERE session_id = ? ORDER BY created_at").bind(sessionId).all(),
-          env.DB.prepare("SELECT event_type, payload_json, occurred_at FROM session_events WHERE session_id = ? ORDER BY occurred_at").bind(sessionId).all()
+          env.DB.prepare("SELECT event_type, payload_json, occurred_at FROM session_events WHERE session_id = ? ORDER BY occurred_at").bind(sessionId).all(),
+          session.context_object_key ? env.ARTIFACTS.get(session.context_object_key) : Promise.resolve(null)
         ]);
         return json({
           session: {
             id: session.id, status: session.status, taskType: session.task_type,
-            objective: session.objective, bestArtifactId: session.best_artifact_id,
+            objective: session.objective, context: contextObject ? await contextObject.text() : "",
+            bestArtifactId: session.best_artifact_id,
             createdAt: session.created_at, updatedAt: session.updated_at
           },
           artifacts: artifacts.results ?? [],
