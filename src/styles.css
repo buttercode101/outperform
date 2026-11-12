@@ -369,3 +369,10 @@ button:disabled{cursor:not-allowed;opacity:.45}
 .comparison-diff{overflow:hidden}
 .comparison-diff pre{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain}
 @media(max-width:520px){.artifact-comparison{padding:11px}.comparison-columns article{padding:10px}.comparison-columns pre{font-size:10px}.diff-line{padding-left:8px;padding-right:8px}.diff-line-numbers{min-width:44px;margin-right:5px}}
+
+
+/* Keyboard and switch-control focus visibility */
+:where(button,a,input,textarea,select,[tabindex]):focus-visible{outline:2px solid #456c4c;outline-offset:3px}
+.guest-composer input:focus-visible,.guest-composer select:focus-visible,.guest-composer textarea:focus-visible{outline:2px solid #456c4c;outline-offset:2px}
+.nav-item:focus-visible{outline-offset:1px}
+@media(forced-colors:active){:where(button,a,input,textarea,select,[tabindex]):focus-visible{outline:2px solid Highlight}}
