@@ -22,3 +22,21 @@ test("line diff falls back safely when comparison would exceed its work limit", 
   assert.equal(result.added, null);
   assert.match(result.rows[0].text, /too large/);
 });
+
+
+test("line diff exposes source and candidate line numbers", () => {
+  const result = buildLineDiff("alpha\nremoved\nomega", "alpha\nadded\nomega");
+  assert.deepEqual(result.rows.map(({ type, lineA, lineB }) => ({ type, lineA, lineB })), [
+    { type: "context", lineA: 1, lineB: 1 },
+    { type: "removed", lineA: 2, lineB: null },
+    { type: "added", lineA: null, lineB: 2 },
+    { type: "context", lineA: 3, lineB: 3 }
+  ]);
+});
+
+test("identical documents produce context only", () => {
+  const result = buildLineDiff("same\ncontent", "same\ncontent");
+  assert.equal(result.added, 0);
+  assert.equal(result.removed, 0);
+  assert.ok(result.rows.every((row) => row.type === "context"));
+});
