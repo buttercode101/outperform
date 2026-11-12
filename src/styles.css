@@ -73,8 +73,25 @@ button:disabled{cursor:not-allowed;opacity:.45}
 .composer-note{font-size:10px;color:#92948b;margin:18px 0 0;line-height:1.5}
 .notice{background:#eef1eb;border-left:2px solid #6b866d;color:#445d47;padding:10px 12px;font-size:11px;line-height:1.6;margin:5px 0}
 @media(max-width:1050px){.main-content{padding:0 4.5%}.principles{gap:16px}.principle{gap:9px}.principle p{font-size:10px}}
-@media(max-width:760px){.sidebar{width:62px;padding:22px 9px}.brand{padding:0 9px}.brand>span:last-child,.workspace-label,.nav-item:not(.active),.nav-item.active{font-size:0}.nav-item{justify-content:center;padding:0;width:42px}.nav-item svg{width:17px;height:17px}.nav-item.active{font-size:0}.sidebar-bottom{padding:14px 8px}.sidebar-status span:last-child,.sidebar-version{display:none}.main-content{margin-left:62px;padding:0 5%}.hero{padding:66px 0 52px}.hero h1{font-size:clamp(34px,7vw,48px)}.principles{grid-template-columns:1fr;gap:18px}.principle p{max-width:100%;font-size:11px}.work-area{padding-top:38px}.private-label{font-size:0;gap:0}.private-label svg{width:15px;height:15px}}
-@media(max-width:420px){.main-content{padding:0 16px}.topbar{height:58px}.hero{padding:55px 0 44px}.hero-copy{font-size:13px}.footer{font-size:8px}.composer{padding:22px 18px}.composer h2{font-size:21px}.composer-actions .primary-button{padding:0 12px}}
+@media(max-width:760px){
+  .sidebar{inset:auto 0 0;width:100%;height:auto;min-height:66px;padding:7px 10px calc(7px + env(safe-area-inset-bottom));flex-direction:row;align-items:center;justify-content:center;border-right:0;border-top:1px solid var(--line);box-shadow:0 -8px 24px rgba(32,38,31,.06)}
+  .sidebar .brand,.sidebar .workspace-label,.sidebar-bottom{display:none}
+  .nav-list{width:100%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;align-items:center}
+  .nav-item,.nav-item.active{width:100%;height:50px;min-width:0;padding:5px 2px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;font-size:9px;line-height:1.1;text-align:center;white-space:nowrap;border-radius:4px}
+  .nav-item svg{width:17px;height:17px;flex:0 0 auto}
+  .main-content{margin-left:0;padding:0 5%;padding-bottom:calc(88px + env(safe-area-inset-bottom))}
+  .hero{padding:66px 0 52px}.hero h1{font-size:clamp(34px,7vw,48px)}
+  .principles{grid-template-columns:1fr;gap:18px}.principle p{max-width:100%;font-size:11px}
+  .work-area{padding-top:38px}.private-label{font-size:0;gap:0}.private-label svg{width:15px;height:15px}
+}
+@media(max-width:520px){
+  .main-content{padding-left:16px;padding-right:16px}
+  .topbar{height:58px}.topbar-right{gap:8px}.user-email,.delete-account-button{display:none}
+  .breadcrumb{font-size:10px}.signout-button{font-size:10px;padding:6px 8px}
+  .hero{padding:55px 0 44px}.hero-copy{font-size:13px}.footer{font-size:8px}
+  .composer{padding:22px 18px}.composer h2{font-size:21px}.composer-actions .primary-button{padding:0 12px}
+}
+@media(max-width:360px){.nav-item,.nav-item.active{font-size:8px}.nav-list{gap:2px}.main-content{padding-left:12px;padding-right:12px}.topbar-right{gap:6px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
 
 
