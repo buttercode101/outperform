@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { extractJsonObject } from "../src/domain/structured-response.js";
+import { extractJsonObject, normalizeModelContent } from "../src/domain/structured-response.js";
 
 test("extracts JSON from a fenced response", () => {
   assert.deepEqual(extractJsonObject('Here is the review:\n```json\n{"assessment":"Good","criteriaCoverage":["A"]}\n```'), {
@@ -28,4 +28,13 @@ test("returns null for malformed, incomplete or non-object responses", () => {
   assert.equal(extractJsonObject("no JSON was returned"), null);
   assert.equal(extractJsonObject('[{"assessment":"array"}]'), null);
   assert.equal(extractJsonObject(null), null);
+});
+
+test("normalizes string, multipart and object model message content", () => {
+  assert.equal(normalizeModelContent({ content: "  {\"ok\":true}  " }), '{"ok":true}');
+  assert.equal(normalizeModelContent({ content: [{ type: "text", text: '{"ok":' }, { type: "text", text: 'true}' }] }), '{"ok":\ntrue}');
+  assert.equal(normalizeModelContent({ content: { ok: true } }), '{"ok":true}');
+  assert.equal(normalizeModelContent({ refusal: "  Refused  " }), "Refused");
+  assert.equal(normalizeModelContent({ content: null }), "");
+  assert.equal(normalizeModelContent(null), "");
 });
