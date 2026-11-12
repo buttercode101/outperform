@@ -14,6 +14,22 @@ const taskTypes = [
   { value: "OTHER", label: "Something else" }
 ];
 
+function downloadTextFile(filename, text, mimeType = "text/markdown;charset=utf-8") {
+  const blob = new Blob([text], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.hidden = true;
+  document.body.appendChild(link);
+  link.click();
+  // Keep the object URL alive long enough for mobile browsers to begin the download.
+  window.setTimeout(() => {
+    URL.revokeObjectURL(url);
+    link.remove();
+  }, 1000);
+}
+
 function Mark() {
   return <span className="brand-mark" aria-hidden="true"><span /><span /><span /></span>;
 }
@@ -186,22 +202,12 @@ function GuestWorkspace({ onSignIn }) {
       "## Next steps", "- Establish the baseline and preserve the original.", "- Identify assumptions, risks and missing information.", "- Produce an improved candidate.", "- Verify each success criterion with evidence.", "",
       "_Guest workspace export. AI execution, durable workflow, cloud history and review are available after creating a free account._"
     ].join("\n");
-    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url; link.download = "outperform-work-brief.md"; link.click();
-    URL.revokeObjectURL(url);
+    downloadTextFile("outperform-work-brief.md", markdown);
   }
 
   function exportPrompt(item) {
     const markdown = buildGuestPrompt(item);
-    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "outperform-ready-to-use-prompt.md";
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadTextFile("outperform-ready-to-use-prompt.md", markdown);
     setNotice("Your reusable improvement prompt was exported. It was generated locally and has not been uploaded.");
   }
 
@@ -221,7 +227,7 @@ function GuestWorkspace({ onSignIn }) {
           <div className="section-heading"><div><span className="section-kicker">FREE · NO SIGN-UP</span><h2>Build a work brief</h2></div></div>
           <section className="brief-completeness" aria-live="polite">
             <div className="brief-completeness-top"><div><span className="section-kicker">LOCAL CHECK · NO UPLOAD</span><strong>Brief completeness</strong></div><span className="brief-completeness-count">{readiness.completed}/{readiness.total}</span></div>
-            <div className="brief-completeness-track"><span style={{ width: readiness.percentage + "%" }} /></div>
+            <div className="brief-completeness-track" role="progressbar" aria-label="Brief completeness" aria-valuemin={0} aria-valuemax={100} aria-valuenow={readiness.percentage}><span style={{ width: readiness.percentage + "%" }} /></div>
             <ul>{readiness.checks.map((check) => <li key={check.id} className={check.complete ? "complete" : ""}><span aria-hidden="true">{check.complete ? "✓" : "○"}</span><span>{check.label}</span><small>{check.complete ? "Included" : check.guidance}</small></li>)}</ul>
             <p>{readiness.note}</p>
           </section>
