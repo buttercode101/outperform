@@ -1,6 +1,6 @@
 # OUTPERFORM — Release readiness
 
-Updated: 12 November 2026
+Updated: 12 November 2026 — takeover verification
 
 ## Implemented in the repository
 
@@ -20,8 +20,11 @@ Updated: 12 November 2026
 
 ## Verification evidence
 
-- Latest verified release: commit `4f08130c33cd0a92f3fe498f4997009f305f1969` (12 November 2026), Quality run 253 and Deploy production run 171 both completed successfully.
+- Latest verified release: commit `5b80ba5861cca07cb377253d4a928c71f747aac1` (12 November 2026), Quality run 272 and Deploy production run 190 both completed successfully. [Quality run](https://github.com/buttercode101/outperform/actions/runs/43193886266) · [Production deployment](https://github.com/buttercode101/outperform/actions/runs/43193886265).
 - Latest production deployment steps passed: domain tests, Worker validation, production build, D1 migrations, Cloudflare deployment, Better Auth/OpenRouter configuration, production health, guest-entry smoke test and anonymous private-API boundary checks.
+- Added a regression-tested final-review prompt builder after finding an undefined `constraintsText` reference that could fail the default five-call workflow after artifact generation. The workflow now receives explicitly formatted constraints.
+- Prevented stale asynchronous session-detail requests from replacing a more recently selected session or reopening a closed review panel.
+- Raised contrast for secondary copy, diff context lines and line-number labels after checking the affected text/background pairs.
 - Domain tests and production build run through GitHub Actions.
 - Production deployment health gate checks D1, usage schema, playbook schema, R2, Durable Workflow, authentication and both model configurations.
 - Production smoke test checks public guest entry, built guest workspace markers and authentication boundaries for sessions, usage, playbooks and account deletion.
@@ -31,10 +34,10 @@ A passing build or health endpoint is not equivalent to a complete authenticated
 
 ## Release blockers / not yet proven
 
-1. Obtain an interactive visual browser QA run on mobile and desktop. Automated production smoke coverage is green, but it does not replace real browser interaction.
+1. Obtain an interactive visual browser QA run on mobile and desktop. Automated production smoke coverage is green, but it does not replace real browser interaction. The current browser automation service could not start because its wallet balance is negative; no screenshots or visual QA pass are claimed.
 2. Complete a signed-in production journey: sign-up, sign-in, create session, start multi-model workflow, retrieve artifacts, verify hashes, review, approve/reject, save/reuse/delete playbooks and delete account.
 3. Prove tenant isolation with two separate accounts across sessions, artifacts, evidence and playbooks.
-4. Perform visual browser testing on mobile and desktop at 320, 375, 768, 1120 and wider viewports; test keyboard navigation and reduced motion. The connected browser-testing service was unavailable due to insufficient wallet balance; no visual QA pass is claimed.
+4. Perform visual browser testing on mobile and desktop at 320, 375, 768, 1120 and wider viewports; test keyboard navigation and reduced motion. This remains outstanding until browser automation is funded and a real run completes.
 5. Configure email delivery for password reset and decide whether email verification is required. No outbound email provider is configured currently.
 6. Publish reviewed Privacy Policy and Terms of Use. Legal operator, jurisdiction, monitored contact email, retention periods and upstream provider data terms must be confirmed.
 7. Test D1 backup/restore, R2 recovery, secret rotation and incident response.
