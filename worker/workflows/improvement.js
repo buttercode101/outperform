@@ -4,7 +4,7 @@ import { inspectArtifact } from "../../src/domain/quality-gates.js";
 import { assessWorkRisk } from "../../src/domain/risk-assessment.js";
 import { buildFinalReviewPrompt } from "../../src/domain/final-review.js";
 import { WORKFLOW_ARTIFACT_VERSIONS } from "../../src/domain/artifact.js";
-import { extractJsonObject } from "../../src/domain/structured-response.js";
+import { extractJsonObject, normalizeModelContent } from "../../src/domain/structured-response.js";
 
 const isoNow = () => new Date().toISOString();
 

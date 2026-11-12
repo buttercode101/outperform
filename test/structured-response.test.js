@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { extractJsonObject, normalizeModelContent } from "../src/domain/structured-response.js";
 
 test("extracts JSON from a fenced response", () => {
@@ -37,4 +38,9 @@ test("normalizes string, multipart and object model message content", () => {
   assert.equal(normalizeModelContent({ refusal: "  Refused  " }), "Refused");
   assert.equal(normalizeModelContent({ content: null }), "");
   assert.equal(normalizeModelContent(null), "");
+});
+
+test("workflow imports the structured response helpers it calls", () => {
+  const workerSource = readFileSync(new URL("../worker/workflows/improvement.js", import.meta.url), "utf8");
+  assert.match(workerSource, /import \{ extractJsonObject, normalizeModelContent \} from ["']\.\.\/\.\.\/src\/domain\/structured-response\.js["']/);
 });
