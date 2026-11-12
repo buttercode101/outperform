@@ -38,29 +38,26 @@ Updated: 12 November 2026 — takeover verification
 
 ## Verification evidence
 
-- Latest verified release: commit `5b80ba5861cca07cb377253d4a928c71f747aac1` (12 November 2026), Quality run 272 and Deploy production run 190 both completed successfully. [Quality run](https://github.com/buttercode101/outperform/actions/runs/43193886266) · [Production deployment](https://github.com/buttercode101/outperform/actions/runs/43193886265).
-- Latest production deployment steps passed: domain tests, Worker validation, production build, D1 migrations, Cloudflare deployment, Better Auth/OpenRouter configuration, production health, guest-entry smoke test and anonymous private-API boundary checks.
-- Added a regression-tested final-review prompt builder after finding an undefined `constraintsText` reference that could fail the default five-call workflow after artifact generation. The workflow now receives explicitly formatted constraints.
-- Prevented stale asynchronous session-detail requests from replacing a more recently selected session or reopening a closed review panel.
-- Raised contrast for secondary copy, diff context lines and line-number labels after checking the affected text/background pairs.
-- Domain tests and production build run through GitHub Actions.
-- Production deployment health gate checks D1, usage schema, playbook schema, R2, Durable Workflow, authentication and both model configurations.
-- Production smoke test checks public guest entry, built guest workspace markers and authentication boundaries for sessions, usage, playbooks and account deletion.
-- D1 migration SQL for daily usage and private playbooks was checked against SQLite-compatible constraints during implementation.
+- Latest verified application deployment: commit c38833509643dd213c2a581b361d820a7d312ee9, Quality run 301 and Deploy production run 203 both completed successfully.
+- The production deployment validates the D1 production backend and Time Travel bookmark without running a live D1 export. Migrations, Cloudflare deployment, Better Auth/OpenRouter configuration, production health and guest/auth-boundary smoke checks passed.
+- Authenticated production E2E run 43204844984 passed the full user journey: account creation, session creation, primary/challenger generation, adjudication, final improvement, structured final review, artifact integrity, human approval, exports, tenant isolation and account deletion.
+- Production browser QA run 43205927935 passed guest entry and interactions at 320, 375, 768, 1120 and 1440 CSS-pixel widths, in light and dark modes. Authentication and theme persistence were also exercised.
+- Authenticated desktop/mobile screenshots were captured in light and dark themes and visually inspected. The review modal can be closed and reopened in each theme without bypassing the UI.
+- D1 SQL snapshot import into an isolated local database and R2 byte-for-byte download verification passed in the earlier backup workflow. Existing R2 snapshots remain private and retained. A separate Time Travel restore drill and secret-rotation rehearsal have not yet been performed.
+- The historical missing-baseline record was repaired with a reconstructed baseline, preserved original artifact IDs, a private R2 recovery manifest and an explicit BASELINE_RECONSTRUCTED event. The database foreign-key check returned no violations.
+- Domain tests, Worker syntax checks and production build pass in GitHub Actions. The new structured-response parser tests cover fenced JSON, surrounding prose, escaped braces, malformed responses and multipart provider content.
 
-A passing build or health endpoint is not equivalent to a complete authenticated end-to-end test.
+## Remaining release blockers / not yet proven
 
-## Release blockers / not yet proven
-
-1. Obtain an interactive visual browser QA run on mobile and desktop. Automated production smoke coverage is green, but it does not replace real browser interaction. The current browser automation service could not start because its wallet balance is negative; no screenshots or visual QA pass are claimed.
-2. Complete a signed-in production journey: sign-up, sign-in, create session, start multi-model workflow, retrieve artifacts, verify hashes, review, approve/reject, save/reuse/delete playbooks and delete account.
-3. Prove tenant isolation with two separate accounts across sessions, artifacts, evidence and playbooks.
-4. Perform visual browser testing on mobile and desktop at 320, 375, 768, 1120 and wider viewports; test keyboard navigation and reduced motion. This remains outstanding until browser automation is funded and a real run completes.
-5. Configure email delivery for password reset and decide whether email verification is required. No outbound email provider is configured currently.
-6. Publish reviewed Privacy Policy and Terms of Use. Legal operator, jurisdiction, monitored contact email, retention periods and upstream provider data terms must be confirmed.
-7. Test D1 backup/restore, R2 recovery, secret rotation and incident response.
-8. Add actual execution adapters for connected repositories, browser journeys, source retrieval and external test tools. Current checks are limited text-pattern and structure checks; they do not execute code, validate source URLs or audit financial claims.
-9. Build customer-owned benchmark sets with reviewed ground truth, repeatable tasks, regression tests, false-positive/false-negative tracking, cost and latency measurements. Do not claim "10x better" until controlled comparative tests support it.
+1. **Offline/PWA:** no service worker, registration or web app manifest currently exists. Offline guest operation has not been implemented or tested.
+2. **Android:** no Android project, Capacitor configuration or Gradle wrapper exists. No APK/AAB has been built or tested.
+3. **Provider fallback:** deployment 203 includes the fallback for empty/unsupported JSON-mode responses. A fresh authenticated E2E run against that deployment is still pending.
+4. **Keyboard and accessibility:** keyboard-only navigation, focus order, screen-reader behavior and reduced-motion preferences still need dedicated verification.
+5. **Email delivery:** configure password-reset delivery and decide whether email verification is required. No outbound email provider is configured.
+6. **Legal and privacy:** publish reviewed Privacy Policy and Terms of Use. Confirm legal operator, jurisdiction, monitored contact email, retention periods and upstream provider data terms.
+7. **Recovery operations:** SQL snapshot restore and R2 retrieval were tested, but a Time Travel restore drill, secret rotation and incident-response rehearsal remain outstanding.
+8. **Execution adapters:** add real adapters for connected repositories, browser journeys, source retrieval and external test tools. Current deterministic checks are limited to selected text patterns and structure; they do not execute code, validate source URLs or audit financial claims.
+9. **Benchmarks:** build customer-owned benchmark sets with reviewed ground truth, repeatable tasks, regression tests, false-positive/false-negative tracking, cost and latency measurements. Do not claim "10x better" until controlled comparative tests support it.
 
 ## Release decision
 
