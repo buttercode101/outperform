@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { authClient } from "./lib/auth-client.js";
 import { assessBriefCompleteness } from "./domain/brief-readiness.js";
 import { buildGuestPrompt } from "./domain/guest-prompt.js";
+import { buildFollowUpContext } from "./domain/follow-up.js";
 
 const taskTypes = [
   { value: "CODE", label: "Software & code" },
@@ -681,17 +682,11 @@ export default function App() {
     setBusy(true);
     setNotice("");
     try {
-      const previousContext = selected.detail.session.context || "";
-      const followUpContext = [
-        previousContext,
-        "PREVIOUS CANDIDATE TO IMPROVE:",
-        selectedContent || "(No candidate text was loaded.)",
-        "USER FEEDBACK FOR THIS PASS:",
-        rerunFeedback.trim()
-      ].filter(Boolean).join("\n\n");
-      if (new TextEncoder().encode(followUpContext).length > 100000) {
-        throw new Error("The original context and previous candidate exceed the 100 KB session limit. Start a new session with a shorter excerpt.");
-      }
+      const followUpContext = buildFollowUpContext({
+        originalContext: selected.detail.session.context || "",
+        previousCandidate: selectedContent,
+        feedback: rerunFeedback
+      });
       const response = await fetch("/api/sessions", {
         method: "POST",
         headers: { "content-type": "application/json" },
