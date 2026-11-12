@@ -98,12 +98,16 @@ try {
   await pageA.getByRole("button", { name: "Switch to dark mode" }).click();
   assert.equal(await pageA.locator("html").getAttribute("data-theme"), "dark", "Authenticated workspace theme toggle must work.");
 
-  await pageA.screenshot({ path: outputDir + "/authenticated-overview-dark-desktop.png", fullPage: true });
+  await pageA.screenshot({ path: outputDir + "/authenticated-overview-light-desktop.png", fullPage: true });
   await pageA.setViewportSize({ width: 375, height: 850 });
   const mobileOverviewWidth = await pageA.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth));
   assert.ok(mobileOverviewWidth <= 376, "Authenticated overview must not overflow at 375px.");
+  await pageA.screenshot({ path: outputDir + "/authenticated-overview-light-mobile.png", fullPage: true });
+  await pageA.getByRole("button", { name: "Switch to dark mode" }).click();
+  assert.equal(await pageA.locator("html").getAttribute("data-theme"), "dark");
   await pageA.screenshot({ path: outputDir + "/authenticated-overview-dark-mobile.png", fullPage: true });
   await pageA.setViewportSize({ width: 1440, height: 1000 });
+  await pageA.screenshot({ path: outputDir + "/authenticated-overview-dark-desktop.png", fullPage: true });
 
   const objective = "Create a concise deployment runbook for a small web application, including a pre-deployment snapshot, smoke checks, rollback steps, and post-deployment verification.";
   await pageA.getByRole("button", { name: "New session" }).click();
@@ -184,6 +188,9 @@ try {
   assert.ok(qualityGateCount >= 4, "Deterministic quality gate must expose its individual checks.");
 
   await pageA.screenshot({ path: outputDir + "/review-dark-desktop.png", fullPage: true });
+  await pageA.getByRole("button", { name: "Switch to light mode" }).click();
+  assert.equal(await pageA.locator("html").getAttribute("data-theme"), "light");
+  await pageA.screenshot({ path: outputDir + "/review-light-desktop.png", fullPage: true });
   await pageA.setViewportSize({ width: 375, height: 850 });
   const mobileReviewDimensions = await pageA.evaluate(() => ({
     viewport: window.innerWidth,
@@ -193,6 +200,9 @@ try {
   }));
   assert.ok(mobileReviewDimensions.document <= 376, "Review workspace must not overflow at 375px: " + JSON.stringify(mobileReviewDimensions));
   assert.ok(mobileReviewDimensions.panel <= mobileReviewDimensions.panelClient + 1, "Review panel content must not overflow horizontally.");
+  await pageA.screenshot({ path: outputDir + "/review-light-mobile.png", fullPage: true });
+  await pageA.getByRole("button", { name: "Switch to dark mode" }).click();
+  assert.equal(await pageA.locator("html").getAttribute("data-theme"), "dark");
   await pageA.screenshot({ path: outputDir + "/review-dark-mobile.png", fullPage: true });
   await pageA.setViewportSize({ width: 1440, height: 1000 });
 
