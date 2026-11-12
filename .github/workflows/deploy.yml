@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: outperform-production
-  cancel-in-progress: true
+  group: outperform-production-operations
+  cancel-in-progress: false
 
 jobs:
   deploy:
