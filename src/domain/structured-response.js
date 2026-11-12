@@ -36,3 +36,20 @@ export function extractJsonObject(content) {
 
   return null;
 }
+
+export function normalizeModelContent(message) {
+  if (!message || typeof message !== "object") return "";
+  const content = message.content;
+  if (typeof content === "string") return content.trim();
+  if (Array.isArray(content)) {
+    return content.map(part => {
+      if (typeof part === "string") return part;
+      if (part && typeof part.text === "string") return part.text;
+      if (part && typeof part.content === "string") return part.content;
+      return "";
+    }).filter(Boolean).join("\n").trim();
+  }
+  if (content && typeof content === "object") return JSON.stringify(content);
+  if (typeof message.refusal === "string") return message.refusal.trim();
+  return "";
+}
