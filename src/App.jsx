@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { authClient } from "./lib/auth-client.js";
 import { assessBriefCompleteness } from "./domain/brief-readiness.js";
 import { buildGuestPrompt } from "./domain/guest-prompt.js";
@@ -13,6 +13,62 @@ const taskTypes = [
   { value: "CREATIVE", label: "Creative work" },
   { value: "OTHER", label: "Something else" }
 ];
+
+function useDialogAccessibility(isOpen, onClose) {
+  const dialogRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const previousFocus = document.activeElement;
+    const dialog = dialogRef.current;
+    const getFocusable = () => Array.from(dialog?.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    ) || []).filter((element) => !element.hidden && element.getAttribute("aria-hidden") !== "true");
+
+    const focusable = getFocusable();
+    (focusable[0] || dialog)?.focus();
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current?.();
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const current = getFocusable();
+      if (!current.length) {
+        event.preventDefault();
+        dialog?.focus();
+        return;
+      }
+
+      const first = current[0];
+      const last = current[current.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !dialog?.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !dialog?.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      previousFocus?.focus?.();
+    };
+  }, [isOpen]);
+
+  return dialogRef;
+}
 
 function downloadTextFile(filename, text, mimeType = "text/markdown;charset=utf-8") {
   const blob = new Blob([text], { type: mimeType });
@@ -301,6 +357,8 @@ export default function App() {
   const [taskFilter, setTaskFilter] = useState("ALL");
   const [activeView, setActiveView] = useState("overview");
   const [detailLoading, setDetailLoading] = useState(false);
+  const composerDialogRef = useDialogAccessibility(showComposer, () => setShowComposer(false));
+  const reviewDialogRef = useDialogAccessibility(Boolean(selected), () => setSelected(null));
 
 
 
@@ -861,7 +919,7 @@ export default function App() {
       </main>
 
       {showComposer && <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowComposer(false); }}>
-        <section className="composer" role="dialog" aria-modal="true" aria-labelledby="composer-title">
+        <section ref={composerDialogRef} className="composer" role="dialog" aria-modal="true" aria-labelledby="composer-title" tabIndex={-1}>
           <div className="composer-header"><div><span className="section-kicker">NEW WORK SESSION</span><h2 id="composer-title">What are we improving?</h2></div><button className="close-button" onClick={() => setShowComposer(false)} aria-label="Close">×</button></div>
           <form onSubmit={submitSession}>
             <label htmlFor="task-type">What kind of work is this?</label><select id="task-type" value={taskType} onChange={(e) => setTaskType(e.target.value)}>{taskTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
@@ -877,7 +935,7 @@ export default function App() {
       </div>}
 
       {selected && <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setSelected(null); }}>
-        <section className="review-panel" role="dialog" aria-modal="true" aria-labelledby="review-title">
+        <section ref={reviewDialogRef} className="review-panel" role="dialog" aria-modal="true" aria-labelledby="review-title" tabIndex={-1}>
           <div className="composer-header"><div><span className="section-kicker">SESSION REVIEW</span><h2 id="review-title">{selected.session.objective}</h2></div><button className="close-button" onClick={() => setSelected(null)} aria-label="Close">×</button></div>
           {detailLoading ? <p>Loading session evidence…</p> : selected.detail && <>
             <div className="review-meta"><Status value={selected.detail.session.status} /><span>{selected.detail.artifacts.length} candidate artifacts</span></div>
