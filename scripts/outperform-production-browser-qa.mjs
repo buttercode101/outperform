@@ -8,6 +8,7 @@ await mkdir(outputDir, { recursive: true });
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, acceptDownloads: true });
+await page.emulateMedia({ colorScheme: "dark" });
 const errors = [];
 page.on("pageerror", error => errors.push(error.message));
 page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
@@ -20,6 +21,17 @@ try {
   assert.equal(await page.locator("#guest-objective").count(), 1);
   assert.equal(await page.locator("#guest-requirements").count(), 1);
   assert.equal(await page.locator("#guest-context").count(), 1);
+  assert.equal(await page.locator("html").getAttribute("data-theme"), "dark", "System dark preference should be applied on first visit.");
+  const darkBackground = await page.locator(".guest-screen").evaluate(element => getComputedStyle(element).backgroundColor);
+  assert.ok(Number(darkBackground.match(/\\d+/)?.[0]) < 50, `Dark theme surface is not dark: ${darkBackground}`);
+
+  await page.getByRole("button", { name: "Switch to light mode" }).click();
+  assert.equal(await page.locator("html").getAttribute("data-theme"), "light");
+  await page.reload({ waitUntil: "networkidle" });
+  await page.locator(".guest-hero h1").waitFor({ state: "visible" });
+  assert.equal(await page.locator("html").getAttribute("data-theme"), "light", "Manual theme choice should survive reload and override system preference.");
+  const lightBackground = await page.locator(".guest-screen").evaluate(element => getComputedStyle(element).backgroundColor);
+  assert.ok(Number(lightBackground.match(/\\d+/)?.[0]) > 200, `Light theme surface is not light: ${lightBackground}`);
 
   for (const width of [320, 375, 768, 1120, 1440]) {
     await page.setViewportSize({ width, height: width < 500 ? 850 : 1000 });
@@ -37,8 +49,20 @@ try {
     assert.ok(dimensions.heroRight <= width + 1, `Hero heading overflows at ${width}px`);
     assert.ok(dimensions.composerRight <= width + 1, `Composer overflows at ${width}px`);
     assert.ok(dimensions.libraryRight <= width + 1, `Saved brief panel overflows at ${width}px`);
-    await page.screenshot({ path: `${outputDir}/guest-${width}.png`, fullPage: true });
+    await page.screenshot({ path: `${outputDir}/guest-light-${width}.png`, fullPage: true });
+    await page.getByRole("button", { name: "Switch to dark mode" }).click();
+    await page.screenshot({ path: `${outputDir}/guest-dark-${width}.png`, fullPage: true });
+    await page.getByRole("button", { name: "Switch to light mode" }).click();
   }
+
+  await page.goto(baseURL + "/?account=1&mode=signup", { waitUntil: "networkidle" });
+  await page.locator(".auth-screen").waitFor({ state: "visible" });
+  assert.equal(await page.locator("html").getAttribute("data-theme"), "light");
+  await page.getByRole("button", { name: "Switch to dark mode" }).click();
+  assert.equal(await page.locator("html").getAttribute("data-theme"), "dark", "Theme control should also be available on authentication.");
+  await page.reload({ waitUntil: "networkidle" });
+  assert.equal(await page.locator("html").getAttribute("data-theme"), "dark", "Theme preference should persist across guest and authentication routes.");
+  await page.goto(baseURL, { waitUntil: "networkidle" });
 
   await page.setViewportSize({ width: 1440, height: 1000 });
   const objective = `Browser QA brief ${new Date().toISOString()}`;
