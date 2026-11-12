@@ -284,6 +284,7 @@ export default function App() {
   const [artifactLoading, setArtifactLoading] = useState(false);
   const [integrityResults, setIntegrityResults] = useState({});
   const [integrityBusyId, setIntegrityBusyId] = useState("");
+  const [rerunFeedback, setRerunFeedback] = useState("");
   const [compareMode, setCompareMode] = useState(false);
   const [leftArtifactId, setLeftArtifactId] = useState("");
   const [rightArtifactId, setRightArtifactId] = useState("");
@@ -504,6 +505,7 @@ export default function App() {
   }
 
   async function openSession(session) {
+    setRerunFeedback("");
     setDetailLoading(true);
     setSelected({ session, detail: null });
     setSelectedContent("");
@@ -673,6 +675,59 @@ export default function App() {
   const completedCount = sessions.filter((item) => item.status === "COMPLETED").length;
   const reviewCount = sessions.filter((item) => item.status === "AWAITING_APPROVAL").length;
   const activeCount = sessions.filter((item) => ["UNDERSTANDING","BASELINING","EXECUTING","CHALLENGING","EVALUATING","IMPROVING","VERIFYING"].includes(item.status)).length;
+
+  async function createFollowUpPass() {
+    if (!selected?.detail || !rerunFeedback.trim() || busy) return;
+    setBusy(true);
+    setNotice("");
+    try {
+      const previousContext = selected.detail.session.context || "";
+      const followUpContext = [
+        previousContext,
+        "PREVIOUS CANDIDATE TO IMPROVE:",
+        selectedContent || "(No candidate text was loaded.)",
+        "USER FEEDBACK FOR THIS PASS:",
+        rerunFeedback.trim()
+      ].filter(Boolean).join("\n\n");
+      if (new TextEncoder().encode(followUpContext).length > 100000) {
+        throw new Error("The original context and previous candidate exceed the 100 KB session limit. Start a new session with a shorter excerpt.");
+      }
+      const response = await fetch("/api/sessions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          taskType: selected.detail.session.taskType,
+          objective: selected.detail.session.objective,
+          context: followUpContext,
+          requirements: (selected.detail.requirements || []).map((item) => ({
+            description: item.description,
+            source: item.source || "USER",
+            mandatory: Boolean(item.mandatory)
+          })),
+          constraints: (selected.detail.constraints || []).map((item) => ({
+            description: item.description,
+            type: item.constraint_type || "OTHER"
+          }))
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || data.error || "Could not create the follow-up session.");
+      const startResponse = await fetch("/api/sessions/" + data.session.id + "/start", { method: "POST" });
+      const startData = await startResponse.json();
+      await loadSessions();
+      setSelected(null);
+      setRerunFeedback("");
+      if (!startResponse.ok) {
+        setNotice("The follow-up session was saved, but could not start: " + (startData.message || startData.error || "Try starting it from your workspace."));
+      } else {
+        setNotice("A new improvement pass has started with your feedback and the previous candidate preserved as context.");
+      }
+    } catch (e) {
+      setNotice(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function decideSession(decision) {
     if (!selected?.session?.id) return;
@@ -879,6 +934,14 @@ export default function App() {
               {compareMode && <div className="artifact-comparison"><div className="comparison-heading"><strong>Candidate comparison</strong><span>Read both complete outputs before choosing a direction.</span></div><div className="comparison-selectors"><label>Candidate A<select value={leftArtifactId} onChange={(e) => setLeftArtifactId(e.target.value)}>{selected.detail.artifacts.filter((item) => item.created_by !== "BASELINE").map((item) => <option key={item.id} value={item.id}>{item.created_by} · v{item.version}</option>)}</select></label><label>Candidate B<select value={rightArtifactId} onChange={(e) => setRightArtifactId(e.target.value)}>{selected.detail.artifacts.filter((item) => item.created_by !== "BASELINE").map((item) => <option key={item.id} value={item.id}>{item.created_by} · v{item.version}</option>)}</select></label></div><div className="comparison-columns">{[leftArtifactId,rightArtifactId].map((id,index) => <article key={id + "-" + index}><h4>{selected.detail.artifacts.find((item) => item.id === id)?.created_by || "Candidate"} · {index ? "B" : "A"}</h4><pre>{artifactContents[id] || "Artifact not loaded."}</pre></article>)}</div></div>}
               {!compareMode && <pre className="artifact-content">{artifactLoading ? "Loading artifact…" : selectedContent || "No selected artifact is available yet."}</pre>}
             </section>
+            {["AWAITING_APPROVAL","COMPLETED","CANCELLED","FAILED","BLOCKED"].includes(selected.detail.session.status) && <section className="follow-up-panel">
+              <span className="section-kicker">ITERATE WITH INTENT</span>
+              <h3>Make the next pass better.</h3>
+              <p>OUTPERFORM will carry forward the original brief, constraints and selected candidate. Tell it what to change, preserve or investigate.</p>
+              <label htmlFor="follow-up-feedback">Your direction for the next pass</label>
+              <textarea id="follow-up-feedback" rows={3} value={rerunFeedback} onChange={(event) => setRerunFeedback(event.target.value)} placeholder="What was missing? What should be different? What must not change?" />
+              <button className="primary-button" disabled={busy || !rerunFeedback.trim() || artifactLoading} onClick={createFollowUpPass}>{busy ? "Starting next pass…" : "Run another improvement pass"} <Icon name="arrow" /></button>
+            </section>}
             {selected.detail.session.status === "AWAITING_APPROVAL" && <div className="decision-actions">
               <div><strong>Does this meet your objective?</strong><span>Your decision is recorded in the session history.</span></div>
               <button className="secondary-button" disabled={busy} onClick={() => decideSession("REJECT")}>Reject result</button>
