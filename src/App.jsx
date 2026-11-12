@@ -758,10 +758,10 @@ export default function App() {
         <a className="brand" href="/" aria-label="OUTPERFORM home"><Mark /><span>OUTPERFORM</span></a>
         <div className="workspace-label">WORKSPACE</div>
         <nav className="nav-list" aria-label="Main navigation">
-          <button className={"nav-item " + (activeView === "overview" ? "active" : "")} type="button" onClick={() => setActiveView("overview")}><Icon name="layers" /> Overview</button>
-          <button className="nav-item" type="button" onClick={() => { setShowComposer(true); setNotice(""); }}><Icon name="plus" /> New session</button>
-          <button className={"nav-item " + (activeView === "playbooks" ? "active" : "")} type="button" onClick={() => setActiveView("playbooks")}><Icon name="book" /> Playbooks</button>
-          <button className={"nav-item " + (activeView === "insights" ? "active" : "")} type="button" onClick={() => setActiveView("insights")}><Icon name="activity" /> Performance</button>
+          <button className={"nav-item " + (activeView === "overview" ? "active" : "")} type="button" aria-label="Overview" title="Overview" aria-current={activeView === "overview" ? "page" : undefined} onClick={() => setActiveView("overview")}><Icon name="layers" /> Overview</button>
+          <button className="nav-item" type="button" aria-label="New session" title="New session" onClick={() => { setShowComposer(true); setNotice(""); }}><Icon name="plus" /> New session</button>
+          <button className={"nav-item " + (activeView === "playbooks" ? "active" : "")} type="button" aria-label="Playbooks" title="Playbooks" aria-current={activeView === "playbooks" ? "page" : undefined} onClick={() => setActiveView("playbooks")}><Icon name="book" /> Playbooks</button>
+          <button className={"nav-item " + (activeView === "insights" ? "active" : "")} type="button" aria-label="Performance" title="Performance" aria-current={activeView === "insights" ? "page" : undefined} onClick={() => setActiveView("insights")}><Icon name="activity" /> Performance</button>
         </nav>
         <div className="sidebar-bottom">
           <div className="sidebar-status"><span className={health === "ready" ? "status-dot online" : health === "setup" ? "status-dot setup" : "status-dot"} /><span>Engine {health}</span></div>
