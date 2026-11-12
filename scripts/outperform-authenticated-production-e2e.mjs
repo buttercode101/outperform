@@ -157,6 +157,26 @@ try {
   for (const required of ["BASELINE", "PRIMARY", "CHALLENGER", "FINAL"]) {
     assert.ok(artifactNames.some(name => name.toUpperCase().includes(required)), "Missing artifact lineage entry: " + required);
   }
+  const persistedSession = await pageA.evaluate(async id => {
+    const response = await fetch("/api/sessions/" + id);
+    if (!response.ok) throw new Error("Session detail returned HTTP " + response.status);
+    return await response.json();
+  }, sessionId);
+  const artifactsByRole = new Map((persistedSession.artifacts || []).map(artifact => [artifact.created_by, artifact]));
+  const baseline = artifactsByRole.get("BASELINE");
+  const primary = artifactsByRole.get("PRIMARY");
+  const challenger = artifactsByRole.get("CHALLENGER");
+  const final = artifactsByRole.get("FINAL");
+  assert.ok(baseline && primary && challenger && final, "All four artifact records must be persisted in D1.");
+  assert.deepEqual(
+    [baseline.version, primary.version, challenger.version, final.version],
+    [1, 2, 3, 4],
+    "Artifact versions must satisfy the positive D1 constraint and preserve lineage order."
+  );
+  assert.equal(primary.parent_artifact_id, baseline.id, "Primary artifact must reference the immutable baseline.");
+  assert.equal(challenger.parent_artifact_id, baseline.id, "Challenger artifact must reference the immutable baseline.");
+  assert.ok([primary.id, challenger.id].includes(final.parent_artifact_id), "Final artifact must reference the selected candidate.");
+  assert.equal(persistedSession.session.bestArtifactId, final.id, "Session best-artifact pointer must resolve to the final artifact.");
   const modelUsageCount = await pageA.locator(".model-usage-panel li").count();
   assert.ok(modelUsageCount >= 4, "Provider usage must be recorded for the real generation workflow.");
   const qualityGateCount = await pageA.locator(".quality-gate-panel li").count();
@@ -286,6 +306,7 @@ try {
     sessionId,
     artifactCount,
     artifactNames,
+    persistedLineage: { baseline: baseline.id, primary: primary.id, challenger: challenger.id, final: final.id },
     integrityPasses,
     modelUsageCount,
     qualityGateCount,
