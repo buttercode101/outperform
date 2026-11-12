@@ -935,7 +935,7 @@ export default function App() {
               <p>OUTPERFORM will carry forward the original brief, constraints and selected candidate. Tell it what to change, preserve or investigate.</p>
               <label htmlFor="follow-up-feedback">Your direction for the next pass</label>
               <textarea id="follow-up-feedback" rows={3} value={rerunFeedback} onChange={(event) => setRerunFeedback(event.target.value)} placeholder="What was missing? What should be different? What must not change?" />
-              <button className="primary-button" disabled={busy || !rerunFeedback.trim() || artifactLoading} onClick={createFollowUpPass}>{busy ? "Starting next pass…" : "Run another improvement pass"} <Icon name="arrow" /></button>
+              <button className="primary-button" disabled={busy || !rerunFeedback.trim() || artifactLoading || !selectedContent.trim()} onClick={createFollowUpPass}>{busy ? "Starting next pass…" : "Run another improvement pass"} <Icon name="arrow" /></button>
             </section>}
             {selected.detail.session.status === "AWAITING_APPROVAL" && <div className="decision-actions">
               <div><strong>Does this meet your objective?</strong><span>Your decision is recorded in the session history.</span></div>
