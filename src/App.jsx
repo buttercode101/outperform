@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { authClient } from "./lib/auth-client.js";
+import { assessBriefCompleteness } from "./domain/brief-readiness.js";
 
 const taskTypes = [
   { value: "CODE", label: "Software & code" },
@@ -86,8 +87,10 @@ function Status({ value }) {
 
 function GuestWorkspace({ onSignIn }) {
   const [items, setItems] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("outperform_guest_work") || "[]"); }
-    catch { return []; }
+    try {
+      const stored = JSON.parse(localStorage.getItem("outperform_guest_work") || "[]");
+      return Array.isArray(stored) ? stored.filter((item) => item && typeof item === "object" && typeof item.id === "string") : [];
+    } catch { return []; }
   });
   const [objective, setObjective] = useState("");
   const [taskType, setTaskType] = useState("CODE");
@@ -95,6 +98,11 @@ function GuestWorkspace({ onSignIn }) {
   const [requirements, setRequirements] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [notice, setNotice] = useState("");
+  const readiness = assessBriefCompleteness({
+    objective,
+    context,
+    requirements: requirements.split("\n").map((item) => item.trim()).filter(Boolean)
+  });
   const guestPlaybooks = [
     { value: "CODE", name: "Engineering hardening", objective: "Improve this software deliverable while preserving existing behaviour, security boundaries and maintainability.", criteria: ["Preserve working functionality","Identify correctness, security, performance and accessibility risks","Propose concrete changes and trade-offs","Define tests that would demonstrate correctness","List what still needs execution or human verification"] },
     { value: "RESEARCH", name: "Evidence-led research", objective: "Produce a decision-ready research brief with traceable claims, counter-evidence and explicit uncertainty.", criteria: ["Separate facts, estimates, assumptions and opinions","Identify credible primary sources and dates","Test the strongest counterargument","Resolve contradictions between sources","List remaining evidence gaps"] },
@@ -187,6 +195,12 @@ function GuestWorkspace({ onSignIn }) {
       <section className="guest-grid">
         <form className="guest-composer" onSubmit={createBrief}>
           <div className="section-heading"><div><span className="section-kicker">FREE · NO SIGN-UP</span><h2>Build a work brief</h2></div></div>
+          <section className="brief-completeness" aria-live="polite">
+            <div className="brief-completeness-top"><div><span className="section-kicker">LOCAL CHECK · NO UPLOAD</span><strong>Brief completeness</strong></div><span className="brief-completeness-count">{readiness.completed}/{readiness.total}</span></div>
+            <div className="brief-completeness-track"><span style={{ width: readiness.percentage + "%" }} /></div>
+            <ul>{readiness.checks.map((check) => <li key={check.id} className={check.complete ? "complete" : ""}><span aria-hidden="true">{check.complete ? "✓" : "○"}</span><span>{check.label}</span><small>{check.complete ? "Included" : check.guidance}</small></li>)}</ul>
+            <p>{readiness.note}</p>
+          </section>
           <label htmlFor="guest-type">Type of work</label>
           <select id="guest-type" value={taskType} onChange={e => setTaskType(e.target.value)}>{taskTypes.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
           <label htmlFor="guest-playbook">Start from a playbook <span>Optional · edit the brief freely</span></label>
