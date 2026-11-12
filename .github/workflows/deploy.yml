@@ -121,7 +121,7 @@ jobs:
           const bundleResponse = await fetch(new URL(scripts[0], base));
           if (!bundleResponse.ok) throw new Error("Guest application bundle returned HTTP " + bundleResponse.status);
           const bundle = await bundleResponse.text();
-          for (const marker of ["No account required", "outperform_guest_work", "Continue without an account"]) {
+          for (const marker of ["No account required", "outperform_guest_work", "Continue without an account", "Brief completeness", "Export AI prompt"]) {
             if (!bundle.includes(marker)) throw new Error("Guest experience marker missing from production bundle: " + marker);
           }
           for (const path of ["/api/sessions", "/api/usage", "/api/playbooks", "/api/account"]) {
