@@ -1,16 +1,11 @@
 import { WorkflowEntrypoint } from "cloudflare:workers";
+import { storeArtifact } from "../artifacts.js";
 import { planChallenge } from "../../src/domain/challenge.js";
 import { inspectArtifact } from "../../src/domain/quality-gates.js";
 import { assessWorkRisk } from "../../src/domain/risk-assessment.js";
 import { buildFinalReviewPrompt } from "../../src/domain/final-review.js";
 
 const isoNow = () => new Date().toISOString();
-
-async function sha256(value) {
-  const bytes = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
 
 async function recordEvent(db, sessionId, type, payload = {}) {
   await db.prepare(
@@ -104,25 +99,6 @@ async function callModel(env, { sessionId, stage, model = env.OPENROUTER_MODEL, 
     ).run();
   }
   return content.trim();
-}
-
-async function storeArtifact(env, session, content, role, version, parentArtifactId = null) {
-  const id = `${session.id}-${role.toLowerCase()}-${version}`;
-  const contentHash = await sha256(content);
-  const objectKey = `sessions/${session.id}/artifacts/${version}-${role.toLowerCase()}-${contentHash}.md`;
-  await env.ARTIFACTS.put(objectKey, content, {
-    httpMetadata: { contentType: "text/markdown; charset=utf-8" },
-    customMetadata: { sessionId: session.id, artifactId: id, contentHash, role }
-  });
-  try {
-    await env.DB.prepare(
-      "INSERT OR IGNORE INTO artifacts (id, session_id, kind, object_key, content_hash, parent_artifact_id, created_by, version, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    ).bind(id, session.id, "MARKDOWN", objectKey, contentHash, parentArtifactId, role, version, isoNow()).run();
-  } catch (error) {
-    await env.ARTIFACTS.delete(objectKey);
-    throw error;
-  }
-  return { id, objectKey, contentHash, version, role };
 }
 
 function parseJudgeResponse(content) {
@@ -248,7 +224,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       criteriaText
     ].join("\n");
     const baselineArtifact = await step.do("store-baseline-artifact", async () =>
-      storeArtifact(this.env, session, baselineContent, "BASELINE", 0)
+      storeArtifact(this.env, session, baselineContent, "BASELINE", 1)
     );
 
     await step.do("mark-baseline", async () => {
@@ -280,7 +256,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       })
     );
     const primaryArtifact = await step.do("store-primary-artifact", async () =>
-      storeArtifact(this.env, session, primaryContent, "PRIMARY", 1, baselineArtifact.id)
+      storeArtifact(this.env, session, primaryContent, "PRIMARY", 2, baselineArtifact.id)
     );
     await step.do("record-primary", async () => {
       await recordEvent(this.env.DB, sessionId, "PRIMARY_EXECUTION_COMPLETED", {
@@ -332,7 +308,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         })
       );
       challengerArtifact = await step.do("store-challenger-artifact", async () =>
-        storeArtifact(this.env, session, challengerContent, "CHALLENGER", 2, baselineArtifact.id)
+        storeArtifact(this.env, session, challengerContent, "CHALLENGER", 3, baselineArtifact.id)
       );
       await step.do("record-challenger", async () => {
         await recordEvent(this.env.DB, sessionId, "CHALLENGE_COMPLETED", {
@@ -381,7 +357,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         maxTokens: 4500
       }));
       finalArtifact = await step.do("store-final-artifact", async () =>
-        storeArtifact(this.env, session, finalContent, "FINAL", 3, selectedArtifact.id)
+        storeArtifact(this.env, session, finalContent, "FINAL", 4, selectedArtifact.id)
       );
       await step.do("record-final-improvement", async () => {
         await recordEvent(this.env.DB, sessionId, "FINAL_IMPROVEMENT_COMPLETED", {
