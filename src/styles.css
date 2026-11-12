@@ -332,3 +332,17 @@ button:disabled{cursor:not-allowed;opacity:.45}
 .follow-up-panel textarea:focus{border-color:#718a70}
 .follow-up-panel .primary-button{margin-top:12px}
 @media(max-width:520px){.follow-up-panel{padding:15px}.follow-up-panel .primary-button{width:100%}}
+
+
+/* Candidate change map */
+.comparison-diff{border:1px solid #dfe4dc;background:#fbfcfa;margin:14px 0;min-width:0}
+.comparison-diff-header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 13px;border-bottom:1px solid #e7eae4}
+.comparison-diff-header strong{font-size:11px;font-weight:650;color:#344134}
+.comparison-diff-header span{font-size:10px;color:#777f73;font-variant-numeric:tabular-nums}
+.comparison-diff pre{margin:0;padding:10px 0;max-height:340px;overflow:auto;font:10px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre}
+.diff-line{display:block;padding:0 12px;min-height:1.65em;overflow-wrap:anywhere;white-space:pre-wrap}
+.diff-added{background:#edf5eb;color:#315d37}
+.diff-removed{background:#fbefed;color:#8c3d36}
+.diff-context{color:#92988f}
+.diff-summary{color:#6d7469;font-family:inherit;white-space:pre-wrap}
+@media(max-width:520px){.comparison-diff-header{align-items:flex-start;flex-direction:column;gap:4px}.comparison-diff pre{max-height:260px}}
