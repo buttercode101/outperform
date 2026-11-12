@@ -1,7 +1,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createArtifact, deriveArtifact, hashContent } from "../src/domain/artifact.js";
+import { createArtifact, deriveArtifact, hashContent, WORKFLOW_ARTIFACT_VERSIONS } from "../src/domain/artifact.js";
 import { createEvidence, adjudicateFinding } from "../src/domain/evidence.js";
+
+test("workflow artifact versions satisfy positive database constraints and preserve lineage order", () => {
+  const versions = Object.values(WORKFLOW_ARTIFACT_VERSIONS);
+  assert.deepEqual(WORKFLOW_ARTIFACT_VERSIONS, {
+    BASELINE: 1,
+    PRIMARY: 2,
+    CHALLENGER: 3,
+    FINAL: 4
+  });
+  assert.equal(new Set(versions).size, versions.length);
+  assert.ok(versions.every(version => Number.isInteger(version) && version > 0));
+});
 
 test("artifact content is hashed and source artifact remains unchanged", () => {
   const original = createArtifact({
