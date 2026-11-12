@@ -18,7 +18,7 @@ Updated: 12 November 2026 — takeover verification
 ### Remaining release gaps — not represented as verified
 - **Service worker / offline support:** no service worker, registration or web app manifest exists in the repository. Offline behaviour has not been implemented or verified.
 - **Android wrapper:** no Android project, Capacitor configuration or Gradle wrapper exists in the repository. No APK/AAB has been built or tested.
-- **Provider fallback regression:** deployment #203 includes the controlled fallback for providers that return empty or unsupported JSON-mode responses. A fresh authenticated E2E run against that deployment is still required to verify this fallback path.
+- **Provider fallback regression:** deployment #203 contains a missing import in the new normalizer path, so AI session generation is currently failing before model calls. PR #9 fixes the import and adds a regression test; it must pass Quality, deploy, and complete a fresh authenticated E2E before this blocker is cleared.
 - External integrations, email delivery, formal public terms/privacy publication and broader independent benchmark coverage remain separate release-readiness work.
 
 ## Implemented in the repository
