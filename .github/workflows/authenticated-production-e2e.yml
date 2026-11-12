@@ -1,6 +1,7 @@
 name: Authenticated production E2E
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - e2e/production-authenticated
