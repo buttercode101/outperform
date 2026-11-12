@@ -6,15 +6,14 @@ async function sha256(value) {
 
 export async function storeArtifact(env, session, content, role, version, parentArtifactId = null) {
   const id = `${session.id}-${role.toLowerCase()}-${version}`;
-  const contentHash = await sha256(content);
-  const objectKey = `sessions/${session.id}/artifacts/${version}-${role.toLowerCase()}-${contentHash}.md`;
-
   if (!Number.isInteger(version) || version < 1) {
     throw new Error(`Artifact ${id} has an invalid version. Artifact versions must be positive integers.`);
   }
   if (typeof content !== "string" || !content.length) {
     throw new Error(`Artifact ${id} cannot be stored without content.`);
   }
+  const contentHash = await sha256(content);
+  const objectKey = `sessions/${session.id}/artifacts/${version}-${role.toLowerCase()}-${contentHash}.md`;
 
   await env.ARTIFACTS.put(objectKey, content, {
     httpMetadata: { contentType: "text/markdown; charset=utf-8" },
