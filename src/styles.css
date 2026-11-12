@@ -346,3 +346,9 @@ button:disabled{cursor:not-allowed;opacity:.45}
 .diff-context{color:#92988f}
 .diff-summary{color:#6d7469;font-family:inherit;white-space:pre-wrap}
 @media(max-width:520px){.comparison-diff-header{align-items:flex-start;flex-direction:column;gap:4px}.comparison-diff pre{max-height:260px}}
+
+.diff-line-numbers{display:inline-block;min-width:52px;margin-right:8px;color:#a0a69b;font-size:9px;font-variant-numeric:tabular-nums;text-align:right;user-select:none}
+.comparison-selectors select{min-width:0;max-width:100%;width:100%;padding:10px 30px 10px 10px;border:1px solid #dfe2d9;background:#fff;color:#30372e;font:inherit;font-size:11px;border-radius:2px}
+.comparison-diff{overflow:hidden}
+.comparison-diff pre{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain}
+@media(max-width:520px){.artifact-comparison{padding:11px}.comparison-columns article{padding:10px}.comparison-columns pre{font-size:10px}.diff-line{padding-left:8px;padding-right:8px}.diff-line-numbers{min-width:44px;margin-right:5px}}
