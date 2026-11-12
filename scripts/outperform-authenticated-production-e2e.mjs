@@ -1,3 +1,4 @@
+// Regression run against deployment 203: exercise provider structured-response fallback and full approval lifecycle.
 import { chromium } from "playwright";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
