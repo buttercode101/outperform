@@ -10,7 +10,7 @@ OUTPERFORM is designed to improve real work—not merely compare model answers. 
 
 The deployed product is evolving from a generic improvement workflow into a cross-tool improvement and proof platform. See [Product Strategy v2](docs/PRODUCT_STRATEGY_V2.md) for the product direction and competitive differentiation.
 
-- Guest-first workspace with local brief creation/edit/delete, text-file import, Markdown export and explicit opt-in guest-to-account import.
+- Guest-first workspace with local brief creation/edit/delete, text-file import, live completeness guidance, work-brief export, reusable AI-prompt export and explicit opt-in guest-to-account import.
 - Free account fair-use allowance: 10 AI workflow starts per UTC day; saving/importing briefs does not consume an AI run. Each run is bounded to five model calls.
 - Authenticated workspace with session search/filtering, workflow metrics, task-specific playbooks, a private reusable playbook library and performance view.
 - Candidate artifact library with side-by-side comparison, SHA-256 fingerprints, artifact downloads and private Evidence Passport export.
@@ -30,7 +30,7 @@ The deployed product is evolving from a generic improvement workflow into a cros
 - Failed workflows are recorded as failed rather than left in an active state.
 - Concurrent start requests are guarded by a conditional database claim.
 
-The production Worker and health gate were verified on November 11, 2026. Later UI and workflow changes are being rebuilt and redeployed through GitHub Actions; check the latest workflow run before treating the newest commit as live. Full user-driven end-to-end acceptance (guest import, account creation, real model run, evidence retrieval, approval/rejection and tenant-isolation tests) remains required. Deterministic text checks are not external verification.
+Production state is established by the latest successful **Deploy production** workflow—not by the newest commit alone. GitHub Actions runs domain tests, syntax checks, a production build, migrations, deployment, health checks and anonymous-access smoke tests. The current release must pass that complete gate before it is treated as live. Full user-driven end-to-end acceptance (guest import, account creation, real model run, evidence retrieval, approval/rejection and tenant-isolation tests) remains required. Deterministic text checks are not external verification.
 
 ## Architecture
 
@@ -81,7 +81,7 @@ See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for the exact token, secret and l
 1. Push to \`main\` or manually run **Deploy production** from GitHub Actions.
 2. The workflow runs domain tests and source validation, builds the app, applies pending D1 migrations, deploys the Worker, configures the OpenRouter secret and creates the Better Auth secret if it does not already exist.
 3. The live health gate verifies D1, daily usage, private playbooks, R2, Durable Workflow, authentication and both model configurations.
-4. A production smoke test checks that guest entry is public, the guest workspace is present in the built bundle, and private session/usage APIs reject anonymous requests.
+4. A production smoke test checks that guest entry is public, local completeness and prompt-export features are present in the built bundle, and private session/usage APIs reject anonymous requests.
 
 The regular Quality workflow does not deploy production. Full signed-in end-to-end acceptance remains a separate release gate. See \`docs/DEPLOYMENT.md\`.
 
