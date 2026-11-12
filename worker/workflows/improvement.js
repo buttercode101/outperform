@@ -133,7 +133,14 @@ async function storeArtifact(env, session, content, role, version, parentArtifac
       throw new Error("Artifact metadata was not persisted with the expected session, lineage, hash and version.");
     }
   } catch (error) {
-    await env.ARTIFACTS.delete(objectKey);
+    // Delete an orphaned object only when D1 confirms that no metadata row references it.
+    // If D1 itself is unavailable, retain the object rather than risk deleting a committed artifact.
+    try {
+      const existing = await env.DB.prepare("SELECT id FROM artifacts WHERE id = ?").bind(id).first();
+      if (!existing) await env.ARTIFACTS.delete(objectKey);
+    } catch {
+      // Safe orphan cleanup can happen later; preserving a potentially referenced object wins.
+    }
     throw error;
   }
   return { id, objectKey, contentHash, version, role };
