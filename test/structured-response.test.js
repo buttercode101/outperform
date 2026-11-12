@@ -69,6 +69,7 @@ test("parses complete adjudication responses with explicit candidate choice", ()
 test("rejects incomplete or invalid adjudication responses instead of silently preferring primary", () => {
   assert.throws(() => parseAdjudicationResponse('{"preferred":"primary","rationale":"Incomplete","strengths":[]}'), /complete JSON object|arrays/);
   assert.throws(() => parseAdjudicationResponse('{"preferred":"other","rationale":"No","strengths":[],"risks":[],"improvementIdeas":[]}'), /preferred set to primary or challenger/);
+  assert.throws(() => parseAdjudicationResponse('{"preferred":"primary","rationale":"No substance","strengths":[],"risks":[],"improvementIdeas":[]}'), /at least one strength and one improvement idea/);
   assert.throws(() => parseAdjudicationResponse('{"preferred":"primary","rationale":"Cut off","strengths":["A"]'), /complete JSON object/);
 });
 
