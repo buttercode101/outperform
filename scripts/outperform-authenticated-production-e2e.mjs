@@ -186,6 +186,11 @@ try {
   const challenger = artifactsByRole.get("CHALLENGER");
   const final = artifactsByRole.get("FINAL");
   assert.ok(baseline && primary && challenger && final, "All four artifact records must be persisted in D1.");
+  const finalReviewEvent = (persistedSession.events || []).find(event => event.event_type === "FINAL_REVIEW_COMPLETED");
+  const finalReview = finalReviewEvent?.payload?.review;
+  assert.ok(finalReview && typeof finalReview.assessment === "string", "Final review must be persisted as structured data.");
+  assert.ok(Array.isArray(finalReview.criteriaCoverage) && finalReview.criteriaCoverage.length > 0, "Final review must contain criteria coverage.");
+  assert.equal(finalReview.verificationStatus, "UNVERIFIED", "A model review must not be labeled as external verification.");
   assert.deepEqual(
     [baseline.version, primary.version, challenger.version, final.version],
     [1, 2, 3, 4],
