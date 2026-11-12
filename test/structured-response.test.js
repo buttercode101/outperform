@@ -42,7 +42,7 @@ test("normalizes string, multipart and object model message content", () => {
 
 test("workflow imports the structured response helpers it calls", () => {
   const workerSource = readFileSync(new URL("../worker/workflows/improvement.js", import.meta.url), "utf8");
-  assert.match(workerSource, /import \{ extractJsonObject, normalizeModelContent \} from ["']\.\.\/\.\.\/src\/domain\/structured-response\.js["']/);
+  assert.match(workerSource, /import \{ extractJsonObject, normalizeModelContent, parseAdjudicationResponse \} from ["']\.\.\/\.\.\/src\/domain\/structured-response\.js["']/);
 });
 
 test("avoids duplicate JSON-mode calls for the known incompatible adjudication model", () => {
