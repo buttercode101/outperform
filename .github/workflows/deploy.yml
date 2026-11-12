@@ -5,6 +5,14 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - "docs/**"
+      - "test/**"
+      - "scripts/**"
+      - "*.md"
+      - ".github/workflows/browser-qa.yml"
+      - ".github/workflows/authenticated-production-e2e.yml"
+      - ".github/workflows/quality.yml"
 
 permissions:
   contents: read
