@@ -29,7 +29,7 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Test live production guest experience
-        run: node test/e2e/guest-workspace.mjs
+        run: node scripts/outperform-production-browser-qa.mjs
         env:
           OUTPERFORM_URL: https://outperform.buttercoder-dev.workers.dev
       - name: Upload desktop and mobile screenshots
