@@ -18,6 +18,7 @@ export async function collectAccountObjectKeys(env, userId) {
 
   for (const session of sessionRows.results ?? []) {
     let cursor;
+    const seenCursors = new Set();
     do {
       const page = await env.ARTIFACTS.list({
         prefix: "sessions/" + session.id + "/",
@@ -26,9 +27,10 @@ export async function collectAccountObjectKeys(env, userId) {
       for (const object of page.objects ?? []) {
         if (object?.key) objectKeys.add(object.key);
       }
-      if (page.truncated && !page.cursor) {
-        throw new Error("R2 session object listing was truncated without a continuation cursor.");
+      if (page.truncated && (!page.cursor || seenCursors.has(page.cursor))) {
+        throw new Error("R2 session object listing did not provide a new continuation cursor.");
       }
+      if (page.truncated) seenCursors.add(page.cursor);
       cursor = page.truncated ? page.cursor : undefined;
     } while (cursor);
   }
