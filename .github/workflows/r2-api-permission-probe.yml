@@ -1,0 +1,37 @@
+name: R2 API Permission Probe
+
+on:
+  push:
+    branches: [qa/r2-api-permission-check]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Verify temporary R2 object write, read and delete
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          node --input-type=module <<'NODE'
+          const token = process.env.CLOUDFLARE_API_TOKEN;
+          const account = process.env.CLOUDFLARE_ACCOUNT_ID || "90cefa028781f749f5816c5748f04cd2";
+          if (!token) throw new Error("CLOUDFLARE_API_TOKEN is not available to the production environment.");
+          const key = "backups/permission-check/" + process.env.GITHUB_RUN_ID + ".txt";
+          const path = "/accounts/" + account + "/r2/buckets/outperform-artifacts-prod/objects/" + key.split("/").map(encodeURIComponent).join("/");
+          const base = "https://api.cloudflare.com/client/v4";
+          const headers = { Authorization: "Bearer " + token };
+          const payload = "OUTPERFORM R2 backup permission probe " + process.env.GITHUB_RUN_ID;
+          const put = await fetch(base + path, { method: "PUT", headers: { ...headers, "Content-Type": "text/plain" }, body: payload });
+          if (!put.ok) throw new Error("R2 PUT permission probe failed: HTTP " + put.status + " " + (await put.text()).slice(0, 500));
+          const get = await fetch(base + path, { headers });
+          const read = await get.text();
+          if (!get.ok || read !== payload) throw new Error("R2 GET integrity probe failed: HTTP " + get.status);
+          const del = await fetch(base + path, { method: "DELETE", headers });
+          if (!del.ok) throw new Error("R2 DELETE permission probe failed: HTTP " + del.status + " " + (await del.text()).slice(0, 500));
+          console.log("R2 API token has verified object PUT, GET and DELETE access. Temporary probe object removed.");
+          NODE
