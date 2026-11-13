@@ -995,6 +995,28 @@ export default function App() {
               return risk ? <div className="risk-assessment"><div><span className="section-kicker">WORK RISK PROFILE</span><strong>{risk.risk} RISK</strong></div><span>Uncertainty estimate: {risk.uncertainty}</span><small>Challenge strategy: {challengePlan?.strategy || "Not recorded"} · Heuristic signals: {(risk.signals || []).join(", ") || "No selected high-risk keywords"}. This is a routing aid, not a formal risk assessment.</small></div> : null;
             })()}
             {(() => {
+              const challengePlan = selected.detail.events.find((event) => event.event_type === "CHALLENGE_PLAN_SELECTED")?.payload;
+              const execution = selected.detail.events.find((event) => event.event_type === "CHALLENGE_EXECUTION_MODE_RECORDED")?.payload;
+              const completed = selected.detail.events.some((event) => event.event_type === "CHALLENGE_COMPLETED");
+              if (!challengePlan) return null;
+              const label = challengePlan.strategy === "NO_CHALLENGE"
+                ? "No challenge was run"
+                : challengePlan.strategy.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
+              return <section className="challenge-report">
+                <div className="challenge-report-heading">
+                  <div><span className="section-kicker">CHALLENGE REPORT</span><h3>{label}</h3></div>
+                  <span className="challenge-report-status">{execution?.executionMode === "MODEL_ONLY" ? "Model-only" : challengePlan.strategy === "NO_CHALLENGE" ? "Not required" : "Legacy run"}</span>
+                </div>
+                <p>{challengePlan.rationale}</p>
+                <div className="challenge-report-details">
+                  <span>{execution?.primaryCandidateProvided ? "Primary candidate challenged" : execution ? "Primary candidate withheld" : "Candidate context not recorded"}</span>
+                  <span>{execution?.externalSearchPerformed ? "External search performed" : execution ? "No external search" : "Search status not recorded"}</span>
+                  <span>{completed ? "Challenger artifact recorded" : "No challenger artifact recorded"}</span>
+                </div>
+                <small>Model-generated challenge only. This does not represent external research, code execution or human specialist review.</small>
+              </section>;
+            })()}
+            {(() => {
               const usageEvents = selected.detail.events.filter((event) => event.event_type === "MODEL_USAGE_RECORDED");
               if (!usageEvents.length) return null;
               const totalTokens = usageEvents.reduce((sum, event) => sum + (Number(event.payload?.totalTokens) || 0), 0);
