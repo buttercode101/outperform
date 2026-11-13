@@ -8,7 +8,7 @@ export const CHALLENGE_STRATEGIES = Object.freeze([
   "REVERSE_FRAMING",
   "SECOND_LOOK",
   "DOMAIN_SPECIALIST_REVIEW",
-  "COUNTEREXAMPLE_SEARCH",
+  "COUNTEREXAMPLE_GENERATION",
   "NO_CHALLENGE"
 ]);
 
@@ -20,28 +20,69 @@ const BASE_VALUE = Object.freeze({
   REVERSE_FRAMING: 0.48,
   SECOND_LOOK: 0.62,
   DOMAIN_SPECIALIST_REVIEW: 0.72,
-  COUNTEREXAMPLE_SEARCH: 0.8,
+  COUNTEREXAMPLE_GENERATION: 0.8,
   NO_CHALLENGE: 0.1
 });
 
 const TASK_BONUS = Object.freeze({
-  CODE: { ADVERSARIAL_REVIEW: 0.08, COUNTEREXAMPLE_SEARCH: 0.1, INDEPENDENT_SOLUTION: 0.06 },
-  RESEARCH: { COUNTEREXAMPLE_SEARCH: 0.12, DOMAIN_SPECIALIST_REVIEW: 0.1, INDEPENDENT_SOLUTION: 0.06 },
+  CODE: { ADVERSARIAL_REVIEW: 0.08, COUNTEREXAMPLE_GENERATION: 0.1, INDEPENDENT_SOLUTION: 0.06 },
+  RESEARCH: { COUNTEREXAMPLE_GENERATION: 0.12, DOMAIN_SPECIALIST_REVIEW: 0.1, INDEPENDENT_SOLUTION: 0.06 },
   DOCUMENT: { ADVERSARIAL_REVIEW: 0.08, SECOND_LOOK: 0.08, REVERSE_FRAMING: 0.04 },
   CREATIVE: { INDEPENDENT_SOLUTION: 0.1, REVERSE_FRAMING: 0.08, SECOND_LOOK: 0.06 }
 });
 
 const COST = Object.freeze({
-  INDEPENDENT_SOLUTION: 3,
-  ADVERSARIAL_REVIEW: 2,
+  INDEPENDENT_SOLUTION: 1,
+  ADVERSARIAL_REVIEW: 1,
   CONFIDENCE_CHALLENGE: 1,
   COMPETITIVE_PROVOCATION: 1,
   REVERSE_FRAMING: 1,
   SECOND_LOOK: 1,
-  DOMAIN_SPECIALIST_REVIEW: 3,
-  COUNTEREXAMPLE_SEARCH: 2,
+  DOMAIN_SPECIALIST_REVIEW: 1,
+  COUNTEREXAMPLE_GENERATION: 1,
   NO_CHALLENGE: 0
 });
+
+const CHALLENGE_INSTRUCTIONS = Object.freeze({
+  INDEPENDENT_SOLUTION: Object.freeze({
+    includePrimary: false,
+    instructions: "Solve the brief independently from the user's objective, context, requirements and constraints. You have not seen the primary candidate. Do not imitate an unseen answer; produce a complete, independently reasoned alternative."
+  }),
+  ADVERSARIAL_REVIEW: Object.freeze({
+    includePrimary: true,
+    instructions: "Actively try to falsify the primary candidate. Find its strongest weaknesses, contradictions, missing cases and ways it could fail. Then produce a complete alternative that fixes those weaknesses rather than returning critique alone."
+  }),
+  CONFIDENCE_CHALLENGE: Object.freeze({
+    includePrimary: true,
+    instructions: "Interrogate the primary candidate's confidence. Identify unsupported assumptions, fragile claims, uncertain dependencies and places where confidence exceeds evidence. Produce a complete alternative that makes uncertainty explicit and avoids overstating certainty."
+  }),
+  COMPETITIVE_PROVOCATION: Object.freeze({
+    includePrimary: true,
+    instructions: "Create a genuinely competitive alternative designed to outperform the primary candidate on correctness, completeness, clarity, usefulness and constraint adherence. Avoid superficial paraphrasing; change the approach where that creates a stronger result."
+  }),
+  REVERSE_FRAMING: Object.freeze({
+    includePrimary: true,
+    instructions: "Reverse the primary candidate's central assumptions and framing. Explore the strongest plausible opposite approach, test whether it solves the objective better, and produce the best practical alternative. Do not reverse assumptions merely for novelty."
+  }),
+  SECOND_LOOK: Object.freeze({
+    includePrimary: true,
+    instructions: "Perform a disciplined second pass over the primary candidate. Look for overlooked requirements, edge cases, contradictions, omissions, ambiguous instructions and practical friction. Produce a complete alternative that closes the most important gaps."
+  }),
+  DOMAIN_SPECIALIST_REVIEW: Object.freeze({
+    includePrimary: true,
+    instructions: "Apply a rigorous domain-specialist lens appropriate to the task. Examine relevant standards, terminology, failure modes and professional trade-offs from model knowledge. Do not claim to be a human specialist or to have checked current external standards; flag anything requiring external validation."
+  }),
+  COUNTEREXAMPLE_GENERATION: Object.freeze({
+    includePrimary: true,
+    instructions: "Generate concrete counterexamples, adversarial scenarios and boundary cases that could invalidate the primary candidate. Use internal reasoning only: no external search or source retrieval is available in this workflow. Produce a complete alternative that addresses the strongest counterexamples and clearly labels unverified assumptions."
+  })
+});
+
+export function buildChallengeInstructions(strategy) {
+  const selected = CHALLENGE_INSTRUCTIONS[strategy];
+  invariant(selected, "INVALID_CHALLENGE_STRATEGY", "The selected challenge strategy is not implemented.");
+  return Object.freeze({ strategy, ...selected });
+}
 
 export function planChallenge({
   taskType,
@@ -67,7 +108,6 @@ export function planChallenge({
   const candidates = allowedStrategies
     .filter((strategy) => CHALLENGE_STRATEGIES.includes(strategy) && strategy !== "NO_CHALLENGE")
     .filter((strategy) => remainingModelCalls >= COST[strategy])
-    .filter((strategy) => remainingToolCalls >= (strategy === "COUNTEREXAMPLE_SEARCH" ? 1 : 0))
     .map((strategy) => {
       const raw = (BASE_VALUE[strategy] + (taskBonuses[strategy] ?? 0)) *
         (0.65 + uncertainty * 0.7) * riskMultiplier;
@@ -76,7 +116,8 @@ export function planChallenge({
         strategy,
         estimatedCost,
         expectedValue: Math.min(1, Number(raw.toFixed(3))),
-        requiresIndependentContext: ["INDEPENDENT_SOLUTION", "DOMAIN_SPECIALIST_REVIEW"].includes(strategy)
+        requiresIndependentContext: strategy === "INDEPENDENT_SOLUTION",
+        toolCallsRequired: 0
       };
     })
     .filter((candidate) => candidate.expectedValue >= expectedBenefitThreshold)
@@ -88,7 +129,8 @@ export function planChallenge({
       rationale: remainingModelCalls === 0 ? "No model-call budget remains." : "No allowed strategy clears the expected-benefit threshold.",
       expectedValue: 0,
       estimatedCost: 0,
-      requiresIndependentContext: false
+      requiresIndependentContext: false,
+      toolCallsRequired: 0
     };
   }
 

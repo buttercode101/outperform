@@ -695,3 +695,86 @@ button:disabled{cursor:not-allowed;opacity:.45}
 :root[data-theme="dark"] .risk-assessment > div strong { color: #e2c98f; }
 :root[data-theme="dark"] .decision-actions > div strong { color: #dce6d9; }
 :root[data-theme="dark"] .decision-actions > div span { color: #b0bdae; }
+
+
+@media(min-width:521px) and (max-width:900px){
+  .topbar-right{gap:10px}
+  .user-email{display:none}
+  .private-label{font-size:0;gap:0}
+  .private-label svg{width:15px;height:15px}
+}
+
+
+/* Transparent, strategy-specific challenge report */
+.challenge-report {
+  margin: 14px 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+}
+.challenge-report-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.challenge-report h3 {
+  margin: 6px 0 0;
+  font: 700 14px Manrope, sans-serif;
+  letter-spacing: -.02em;
+  text-transform: none;
+}
+.challenge-report p {
+  margin: 12px 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.challenge-report-status {
+  flex: 0 0 auto;
+  border: 1px solid #d6dfd3;
+  background: #edf1e9;
+  color: #405a43;
+  padding: 6px 8px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.challenge-report-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 12px 0;
+}
+.challenge-report-details span {
+  max-width: 100%;
+  border: 1px solid var(--line);
+  padding: 6px 8px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+.challenge-report > small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+:root[data-theme="dark"] .challenge-report {
+  background: #1a261d;
+  border-color: #354638;
+  color: #dce6d9;
+}
+:root[data-theme="dark"] .challenge-report p,
+:root[data-theme="dark"] .challenge-report > small,
+:root[data-theme="dark"] .challenge-report-details span {
+  color: #aab5a7;
+}
+:root[data-theme="dark"] .challenge-report-details span { border-color: #354638; }
+:root[data-theme="dark"] .challenge-report-status {
+  background: #203126;
+  border-color: #45664a;
+  color: #b8d5b6;
+}
