@@ -12,7 +12,7 @@ function createMemoryDatabase() {
           return {
             async run() {
               assert.match(sql, /INSERT INTO session_events/);
-              const [id, sessionId, eventType, payload, occurredAt, countSessionId, limit] = values;
+              const [id, sessionId, payload, occurredAt, countSessionId, limit] = values;
               const count = events.filter(event =>
                 event.session_id === countSessionId && event.event_type === "MODEL_CALL_STARTED"
               ).length;
