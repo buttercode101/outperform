@@ -113,7 +113,13 @@ try {
   await pageA.setViewportSize({ width: 375, height: 850 });
   const mobileOverviewWidth = await pageA.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth));
   assert.ok(mobileOverviewWidth <= 376, "Authenticated overview must not overflow at 375px.");
+  assert.ok(await pageA.getByRole("button", { name: "Delete account" }).isVisible(), "Account deletion must remain accessible on mobile.");
   await pageA.screenshot({ path: outputDir + "/authenticated-overview-light-mobile.png", fullPage: true });
+  await pageA.setViewportSize({ width: 320, height: 850 });
+  const narrowOverviewWidth = await pageA.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth));
+  assert.ok(narrowOverviewWidth <= 321, "Authenticated overview must not overflow at 320px: " + narrowOverviewWidth);
+  assert.ok(await pageA.getByRole("button", { name: "Delete account" }).isVisible(), "Account deletion must remain accessible at 320px.");
+  await pageA.setViewportSize({ width: 375, height: 850 });
   await pageA.getByRole("button", { name: "Switch to dark mode" }).click();
   assert.equal(await pageA.locator("html").getAttribute("data-theme"), "dark");
   await pageA.screenshot({ path: outputDir + "/authenticated-overview-dark-mobile.png", fullPage: true });
@@ -294,8 +300,29 @@ try {
   const metricsText = await pageA.locator(".insights-metrics").first().innerText();
   assert.match(metricsText, /MODEL CALLS TODAY/);
   assert.match(metricsText, /TOKENS PROCESSED/);
+  for (const width of [320, 375, 768, 1120]) {
+    await pageA.setViewportSize({ width, height: width < 500 ? 850 : 1000 });
+    const dimensions = await pageA.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth));
+    assert.ok(dimensions <= width + 1, "Performance page overflows at " + width + "px: " + dimensions);
+  }
+  await pageA.setViewportSize({ width: 1440, height: 1000 });
+  await pageA.getByRole("button", { name: "Switch to light mode" }).click();
+  assert.equal(await pageA.locator("html").getAttribute("data-theme"), "light", "Performance page must support light mode.");
+  await pageA.getByRole("button", { name: "Switch to dark mode" }).click();
+  assert.equal(await pageA.locator("html").getAttribute("data-theme"), "dark", "Performance page must support dark mode.");
 
   await pageA.getByRole("button", { name: "Playbooks" }).click();
+  await pageA.locator(".playbook-grid").waitFor({ state: "visible" });
+  for (const width of [320, 375, 768, 1120]) {
+    await pageA.setViewportSize({ width, height: width < 500 ? 850 : 1000 });
+    const dimensions = await pageA.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth));
+    assert.ok(dimensions <= width + 1, "Playbooks page overflows at " + width + "px: " + dimensions);
+  }
+  await pageA.setViewportSize({ width: 1440, height: 1000 });
+  await pageA.getByRole("button", { name: "Switch to light mode" }).click();
+  assert.equal(await pageA.locator("html").getAttribute("data-theme"), "light", "Playbooks page must support light mode.");
+  await pageA.getByRole("button", { name: "Switch to dark mode" }).click();
+  assert.equal(await pageA.locator("html").getAttribute("data-theme"), "dark", "Playbooks page must support dark mode.");
   const starter = pageA.locator(".playbook-card").filter({ hasText: "Engineering hardening" });
   await starter.getByRole("button", { name: "Save to my library" }).click();
   const savedPlaybook = pageA.locator(".saved-playbook-card").filter({ hasText: "Engineering hardening" });
