@@ -1001,7 +1001,7 @@ export default function App() {
               if (!challengePlan) return null;
               const label = challengePlan.strategy === "NO_CHALLENGE"
                 ? "No challenge was run"
-                : challengePlan.strategy.replaceAll("_", " ").toLowerCase().replace(/\\b\\w/g, (letter) => letter.toUpperCase());
+                : challengePlan.strategy.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
               return <section className="challenge-report">
                 <div className="challenge-report-heading">
                   <div><span className="section-kicker">CHALLENGE REPORT</span><h3>{label}</h3></div>
