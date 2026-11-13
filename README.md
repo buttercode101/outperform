@@ -11,7 +11,7 @@ OUTPERFORM is designed to improve real work—not merely compare model answers. 
 The deployed product is evolving from a generic improvement workflow into a cross-tool improvement and proof platform. See [Product Strategy v2](docs/PRODUCT_STRATEGY_V2.md) for the product direction and competitive differentiation.
 
 - Guest-first workspace with local brief creation/edit/delete, text-file import, live completeness guidance, work-brief export, reusable AI-prompt export and explicit opt-in guest-to-account import.
-- Free account fair-use allowance: 10 AI workflow starts per UTC day; saving/importing briefs does not consume an AI run. Each run is bounded to five model calls.
+- Free account fair-use allowance: 10 AI workflow starts per UTC day; saving/importing briefs does not consume an AI run. Each run is bounded to five provider request attempts, including retries and any structured-response fallback requests.
 - Authenticated workspace with session search/filtering, workflow metrics, task-specific playbooks, a private reusable playbook library and performance view.
 - Candidate artifact library with side-by-side comparison, SHA-256 fingerprints, artifact downloads, private Evidence Passport export and iterative follow-up passes that preserve source context, prior candidate, constraints and user feedback.
 - Deterministic artifact quality gate with task-specific checks for selected code-risk patterns, research source-link presence, document structure and quantified business claims; results are recorded as evidence records and clearly labeled as limited checks.
@@ -25,7 +25,7 @@ The deployed product is evolving from a generic improvement workflow into a cros
 - D1 event history, requirements, approval and evidence tables.
 - Explicit human approve/reject decisions, recorded against the session.
 - User requirements and constraints are persisted and passed to every model stage.
-- Default five-call budget supports the full candidate, improvement and review loop; smaller budgets skip later stages explicitly.
+- Default five-attempt budget supports the full candidate, improvement and review loop when providers respond normally; retries consume the same budget, and optional stages are explicitly skipped when no attempts remain.
 - Model evaluation is labeled as model-generated; it is not represented as external verification.
 - Failed workflows are recorded as failed rather than left in an active state.
 - Concurrent start requests are guarded by a conditional database claim.
