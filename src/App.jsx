@@ -410,7 +410,7 @@ export default function App() {
 
 
   async function deleteAccount() {
-    const confirmation = window.prompt("This permanently deletes your account, sessions, playbooks and stored artifacts. Type DELETE MY ACCOUNT to continue.");
+    const confirmation = window.prompt("This deletes your live account, sessions, playbooks and stored artifacts. Private disaster-recovery snapshots may retain historical copies. Type DELETE MY ACCOUNT to continue.");
     if (confirmation !== "DELETE MY ACCOUNT" || accountDeleteBusy) return;
     setAccountDeleteBusy(true);
     try {
@@ -422,7 +422,7 @@ export default function App() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Account deletion failed.");
       try { await authClient.signOut(); } catch {}
-      window.alert("Your OUTPERFORM account and stored work have been deleted.");
+      window.alert("Your live OUTPERFORM account and stored work have been deleted. Private disaster-recovery snapshots may retain historical copies.");
       window.location.replace("/");
     } catch (e) {
       window.alert(e.message);
@@ -583,6 +583,7 @@ export default function App() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || data.error || "Could not create the session.");
       setShowComposer(false);
+      setActiveView("overview");
       setObjective("");
       setContext("");
       setRequirementsText("");
@@ -883,7 +884,7 @@ export default function App() {
 
       <main className="main-content">
         <header className="topbar">
-          <div className="breadcrumb">Workspace <span>/</span> {activeView === "overview" ? "Overview" : activeView === "playbooks" ? "Playbooks" : "Performance"}</div>
+          <div className="breadcrumb"><span className="breadcrumb-root">Workspace</span><span className="breadcrumb-separator">/</span><span className="breadcrumb-current">{activeView === "overview" ? "Overview" : activeView === "playbooks" ? "Playbooks" : "Performance"}</span></div>
           <div className="topbar-right"><ThemeToggle theme={theme} onToggle={toggleTheme} /><span className="private-label"><Icon name="shield" /> Private workspace</span><span className="user-email">{authSession.user.email}</span><button className="delete-account-button" disabled={accountDeleteBusy} onClick={deleteAccount}>{accountDeleteBusy ? "Deleting…" : "Delete account"}</button><button className="signout-button" onClick={async () => { await authClient.signOut(); window.location.replace("/"); }}>Sign out</button><div className="avatar">{(authSession.user.name || "O").slice(0,1).toUpperCase()}</div></div>
         </header>
 
