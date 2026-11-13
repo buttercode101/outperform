@@ -1,5 +1,5 @@
 import { WorkflowEntrypoint } from "cloudflare:workers";
-import { planChallenge } from "../../src/domain/challenge.js";
+import { planChallenge, buildChallengeInstructions } from "../../src/domain/challenge.js";
 import { inspectArtifact } from "../../src/domain/quality-gates.js";
 import { assessWorkRisk } from "../../src/domain/risk-assessment.js";
 import { buildFinalReviewPrompt } from "../../src/domain/final-review.js";
@@ -356,14 +356,34 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         await recordEvent(this.env.DB, sessionId, "CHALLENGE_SELECTED", plan);
         return { status: "CHALLENGING", strategy: plan.strategy };
       });
+      const challengeSpec = buildChallengeInstructions(plan.strategy);
+      await step.do("record-challenge-execution-mode", async () => {
+        await recordEvent(this.env.DB, sessionId, "CHALLENGE_EXECUTION_MODE_RECORDED", {
+          strategy: challengeSpec.strategy,
+          executionMode: "MODEL_ONLY",
+          primaryCandidateProvided: challengeSpec.includePrimary,
+          externalSearchPerformed: false
+        });
+        return { strategy: challengeSpec.strategy, executionMode: "MODEL_ONLY" };
+      });
       challengerContent = await step.do(
         "independent-challenge",
         { retries: { limit: 2, delay: "3 seconds", backoff: "exponential" } },
         async () => callModel(this.env, {
           sessionId, stage: "CHALLENGER",
           model: this.env.OPENROUTER_CHALLENGER_MODEL || this.env.OPENROUTER_MODEL,
-          system: "You are an independent rival solution engine. You have not seen the primary answer. Do not imitate it. Solve the user's task independently and aim to outperform a strong competing system. Do not claim verification you did not perform.",
-          prompt: `TASK TYPE: ${session.task_type}\nTASK-SPECIFIC METHOD: ${taskMethod}\nOBJECTIVE: ${session.objective}\nCONTEXT AND EXISTING WORK:\n${contextObject || "(No additional context supplied)"}\n\n${criteriaText}\n\nProduce a complete independent alternative. Surface assumptions and uncertainty.`,
+          system: `You are OUTPERFORM's challenger engine. Execute the selected challenge method exactly. ${challengeSpec.instructions} Produce a complete, directly usable alternative deliverable. Respect every mandatory requirement and constraint. Separate facts, assumptions and uncertainty. Never invent external sources, searches, execution results, tests or verification. This is a model-only challenge, not an external tool or human specialist review.`,
+          prompt: [
+            `CHALLENGE STRATEGY: ${challengeSpec.strategy}`,
+            `TASK TYPE: ${session.task_type}`,
+            `TASK-SPECIFIC METHOD: ${taskMethod}`,
+            `OBJECTIVE: ${session.objective}`,
+            "CONTEXT AND EXISTING WORK:",
+            contextObject || "(No additional context supplied)",
+            criteriaText,
+            ...(challengeSpec.includePrimary ? ["PRIMARY CANDIDATE:", primaryContent] : []),
+            "Produce the complete alternative required by the selected strategy. State assumptions, uncertainty and any work that still needs external verification."
+          ].join("\n\n"),
           temperature: 0.65
         })
       );
