@@ -1051,12 +1051,30 @@ export default function App() {
             {(() => {
               const finalReviewEvent = selected.detail.events.find((event) => event.event_type === "FINAL_REVIEW_COMPLETED" || event.event_type === "FINAL_REVIEW_SKIPPED");
               const finalReview = finalReviewEvent?.payload?.review;
+              const coverage = Array.isArray(finalReview?.criteriaCoverage) ? finalReview.criteriaCoverage : [];
+              const coverageGaps = coverage.filter((item) => {
+                const status = typeof item === "object" && item ? String(item.status || "").toLowerCase().replaceAll("_", " ").trim() : "";
+                return !["met", "satisfied", "passed", "pass", "covered", "complete", "verified", "fully met"].includes(status);
+              });
+              const hasRisks = (finalReview?.remainingRisks || []).length > 0 || (finalReview?.unverifiedClaims || []).length > 0;
+              const needsAttention = finalReviewEvent?.event_type === "FINAL_REVIEW_SKIPPED" || coverageGaps.length > 0 || hasRisks;
+              const reviewLabel = finalReviewEvent?.event_type === "FINAL_REVIEW_SKIPPED" ? "Review incomplete" : needsAttention ? "Issues identified" : "Review completed";
+              const reviewItemText = (item, fallbackKey) => typeof item === "string" ? item : item?.description || item?.[fallbackKey] || item?.detail || JSON.stringify(item);
               return finalReview ? <section className="final-review-summary">
-                <div className="final-review-heading"><h3>Final criteria review</h3><span className={finalReviewEvent.event_type === "FINAL_REVIEW_SKIPPED" ? "final-review-status review-incomplete" : "final-review-status"}>{finalReviewEvent.event_type === "FINAL_REVIEW_SKIPPED" ? "Review incomplete" : "Review completed"}</span></div>
+                <div className="final-review-heading"><h3>Final criteria review</h3><span className={needsAttention ? "final-review-status review-incomplete" : "final-review-status"}>{reviewLabel}</span></div>
                 <p>{finalReview.assessment}</p>
-                {finalReview.criteriaCoverage?.length > 0 && <><strong>Criteria coverage</strong><ul>{finalReview.criteriaCoverage.map((item, i) => <li key={i}>{typeof item === "string" ? item : JSON.stringify(item)}</li>)}</ul></>}
-                {finalReview.remainingRisks?.length > 0 && <><strong>Remaining risks</strong><ul>{finalReview.remainingRisks.map((item, i) => <li key={i}>{typeof item === "string" ? item : JSON.stringify(item)}</li>)}</ul></>}
-                {finalReview.unverifiedClaims?.length > 0 && <><strong>Claims needing verification</strong><ul>{finalReview.unverifiedClaims.map((item, i) => <li key={i}>{typeof item === "string" ? item : JSON.stringify(item)}</li>)}</ul></>}
+                {coverage.length > 0 && <><strong>Criteria coverage</strong><ul className="final-review-criteria">{coverage.map((item, i) => {
+                  if (typeof item === "string" || !item || typeof item !== "object") return <li key={i}>{String(item)}</li>;
+                  const status = String(item.status || "Unspecified");
+                  const normalizedStatus = status.toLowerCase().replaceAll("_", " ").trim();
+                  const passed = ["met", "satisfied", "passed", "pass", "covered", "complete", "verified", "fully met"].includes(normalizedStatus);
+                  return <li className="final-review-criterion" key={i}>
+                    <div className="final-review-criterion-heading"><strong>{item.requirement || item.criterion || item.description || "Acceptance criterion"}</strong><span className={passed ? "criterion-status criterion-pass" : "criterion-status criterion-attention"}>{status}</span></div>
+                    {item.notes && <small>{item.notes}</small>}
+                  </li>;
+                })}</ul></>}
+                {finalReview.remainingRisks?.length > 0 && <><strong>Remaining risks</strong><ul>{finalReview.remainingRisks.map((item, i) => <li key={i}>{reviewItemText(item, "risk")}</li>)}</ul></>}
+                {finalReview.unverifiedClaims?.length > 0 && <><strong>Claims needing verification</strong><ul>{finalReview.unverifiedClaims.map((item, i) => <li key={i}>{reviewItemText(item, "claim")}</li>)}</ul></>}
                 <span>AI review only. No external verification has been performed.</span>
               </section> : null;
             })()}
