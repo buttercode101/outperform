@@ -108,7 +108,7 @@ export function planChallenge({
   const candidates = allowedStrategies
     .filter((strategy) => CHALLENGE_STRATEGIES.includes(strategy) && strategy !== "NO_CHALLENGE")
     .filter((strategy) => remainingModelCalls >= COST[strategy])
-    .filter((strategy) => remainingToolCalls >= (strategy === "COUNTEREXAMPLE_GENERATION" ? 1 : 0))
+    
     .map((strategy) => {
       const raw = (BASE_VALUE[strategy] + (taskBonuses[strategy] ?? 0)) *
         (0.65 + uncertainty * 0.7) * riskMultiplier;
@@ -117,7 +117,8 @@ export function planChallenge({
         strategy,
         estimatedCost,
         expectedValue: Math.min(1, Number(raw.toFixed(3))),
-        requiresIndependentContext: ["INDEPENDENT_SOLUTION", "DOMAIN_SPECIALIST_REVIEW"].includes(strategy)
+        requiresIndependentContext: strategy === "INDEPENDENT_SOLUTION",
+        toolCallsRequired: 0
       };
     })
     .filter((candidate) => candidate.expectedValue >= expectedBenefitThreshold)
@@ -129,7 +130,8 @@ export function planChallenge({
       rationale: remainingModelCalls === 0 ? "No model-call budget remains." : "No allowed strategy clears the expected-benefit threshold.",
       expectedValue: 0,
       estimatedCost: 0,
-      requiresIndependentContext: false
+      requiresIndependentContext: false,
+      toolCallsRequired: 0
     };
   }
 
