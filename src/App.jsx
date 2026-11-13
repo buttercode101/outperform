@@ -1018,11 +1018,12 @@ export default function App() {
             })()}
             {(() => {
               const usageEvents = selected.detail.events.filter((event) => event.event_type === "MODEL_USAGE_RECORDED");
-              if (!usageEvents.length) return null;
+              const modelAttempts = selected.detail.events.filter((event) => event.event_type === "MODEL_CALL_STARTED").length || usageEvents.length;
+              if (!usageEvents.length && !modelAttempts) return null;
               const totalTokens = usageEvents.reduce((sum, event) => sum + (Number(event.payload?.totalTokens) || 0), 0);
               const costRecords = usageEvents.filter((event) => event.payload?.costCredits != null).length;
               const totalCost = usageEvents.reduce((sum, event) => sum + (Number(event.payload?.costCredits) || 0), 0);
-              return <section className="model-usage-panel"><div><span className="section-kicker">INFERENCE ACCOUNTING</span><h3>Run cost and usage</h3></div><div className="model-usage-totals"><strong>{totalTokens.toLocaleString()} <small>tokens</small></strong><strong>{costRecords ? totalCost.toFixed(6) : "—"} <small>credits</small></strong><strong>{usageEvents.length} <small>model calls</small></strong></div><ul>{usageEvents.map((event, index) => <li key={index}><span>{event.payload?.stage}</span><span>{event.payload?.totalTokens ?? "?"} tokens</span><span>{event.payload?.costCredits == null ? "Cost unavailable" : Number(event.payload.costCredits).toFixed(5) + " credits"}</span></li>)}</ul><p>Provider-reported usage. Credits are provider accounting, not a charge to the user.</p></section>;
+              return <section className="model-usage-panel"><div><span className="section-kicker">INFERENCE ACCOUNTING</span><h3>Run cost and usage</h3></div><div className="model-usage-totals"><strong>{totalTokens.toLocaleString()} <small>tokens</small></strong><strong>{costRecords ? totalCost.toFixed(6) : "—"} <small>credits</small></strong><strong>{modelAttempts} <small>provider attempts</small></strong></div><ul>{usageEvents.length ? usageEvents.map((event, index) => <li key={index}><span>{event.payload?.stage}</span><span>{event.payload?.totalTokens ?? "?"} tokens</span><span>{event.payload?.costCredits == null ? "Cost unavailable" : Number(event.payload.costCredits).toFixed(5) + " credits"}</span></li>) : <li>No successful provider responses were recorded.</li>}</ul><p>Attempts include bounded retries and structured-response fallbacks. Token and credit totals reflect provider-reported usage from successful responses; credits are provider accounting, not a charge to the user.</p></section>;
             })()}
             {(() => {
               const gate = selected.detail.events.find((event) => event.event_type === "DETERMINISTIC_QUALITY_GATE_COMPLETED")?.payload;
@@ -1040,7 +1041,7 @@ export default function App() {
                 <p>{evaluation.rationale}</p>
                 {evaluation.strengths?.length > 0 && <><strong>Strengths identified</strong><ul>{evaluation.strengths.map((item, i) => <li key={i}>{item}</li>)}</ul></>}
                 {evaluation.risks?.length > 0 && <><strong>Risks to consider</strong><ul>{evaluation.risks.map((item, i) => <li key={i}>{item}</li>)}</ul></>}
-                <span>Model-generated assessment. Not external fact-checking or independent verification.</span>
+                <span>{evaluation.parsed === false ? "Automated comparison was not completed; the primary candidate was retained for human review." : "Model-generated assessment. Not external fact-checking or independent verification."}</span>
               </section> : null;
             })()}
             {(selected.detail.requirements?.length > 0 || selected.detail.constraints?.length > 0) && <section className="criteria-review">
@@ -1048,9 +1049,10 @@ export default function App() {
               {selected.detail.constraints?.length > 0 && <><h3>Constraints</h3><ul>{selected.detail.constraints.map((item) => <li key={item.id}>{item.description}</li>)}</ul></>}
             </section>}
             {(() => {
-              const finalReview = selected.detail.events.find((event) => event.event_type === "FINAL_REVIEW_COMPLETED")?.payload?.review;
+              const finalReviewEvent = selected.detail.events.find((event) => event.event_type === "FINAL_REVIEW_COMPLETED" || event.event_type === "FINAL_REVIEW_SKIPPED");
+              const finalReview = finalReviewEvent?.payload?.review;
               return finalReview ? <section className="final-review-summary">
-                <h3>Final criteria review</h3>
+                <div className="final-review-heading"><h3>Final criteria review</h3><span className={finalReviewEvent.event_type === "FINAL_REVIEW_SKIPPED" ? "final-review-status review-incomplete" : "final-review-status"}>{finalReviewEvent.event_type === "FINAL_REVIEW_SKIPPED" ? "Review incomplete" : "Review completed"}</span></div>
                 <p>{finalReview.assessment}</p>
                 {finalReview.criteriaCoverage?.length > 0 && <><strong>Criteria coverage</strong><ul>{finalReview.criteriaCoverage.map((item, i) => <li key={i}>{typeof item === "string" ? item : JSON.stringify(item)}</li>)}</ul></>}
                 {finalReview.remainingRisks?.length > 0 && <><strong>Remaining risks</strong><ul>{finalReview.remainingRisks.map((item, i) => <li key={i}>{typeof item === "string" ? item : JSON.stringify(item)}</li>)}</ul></>}
