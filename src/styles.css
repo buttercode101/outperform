@@ -86,7 +86,7 @@ button:disabled{cursor:not-allowed;opacity:.45}
 }
 @media(max-width:520px){
   .main-content{padding-left:16px;padding-right:16px}
-  .topbar{height:58px}.topbar-right{gap:8px}.user-email,.delete-account-button{display:none}
+  .topbar{height:58px}.topbar-right{gap:8px}.user-email{display:none}
   .breadcrumb{font-size:10px}.signout-button{font-size:10px;padding:6px 8px}
   .hero{padding:55px 0 44px}.hero-copy{font-size:13px}.footer{font-size:8px}
   .composer{padding:22px 18px}.composer h2{font-size:21px}.composer-actions .primary-button{padding:0 12px}
@@ -307,7 +307,7 @@ button:disabled{cursor:not-allowed;opacity:.45}
 .delete-account-button{border:0;background:transparent;color:#9b5a50;font-size:10px;padding:7px 5px;cursor:pointer}
 .delete-account-button:hover{text-decoration:underline}
 .delete-account-button:disabled{opacity:.5;cursor:wait}
-@media(max-width:520px){.topbar-right{flex-wrap:wrap}.delete-account-button{font-size:9px}}
+@media(max-width:520px){.topbar{height:auto;min-height:58px;padding:8px 0;gap:8px}.topbar-right{flex-wrap:wrap;gap:7px}.delete-account-button{display:inline-flex;align-items:center;min-height:30px;font-size:9px;padding:6px 4px}}
 
 .composer-actions{flex-wrap:wrap}
 @media(max-width:560px){.composer-actions button{flex:1 1 auto;min-width:110px}.composer-actions .primary-button{flex:1 1 100%}}
@@ -682,3 +682,16 @@ button:disabled{cursor:not-allowed;opacity:.45}
   :root[data-theme="dark"] .insights-panel,
   :root[data-theme="dark"] .playbook-card { transition: none; }
 }
+
+
+/* Dark-theme contrast for review details and decision controls */
+:root[data-theme="dark"] .review-meta { color: #b8c6b5; }
+:root[data-theme="dark"] .model-usage-panel ul,
+:root[data-theme="dark"] .model-usage-panel li { border-color: #354638; }
+:root[data-theme="dark"] .model-usage-panel li { color: #b8c6b5; }
+:root[data-theme="dark"] .model-usage-panel li span:first-child { color: #d6e3d3; }
+:root[data-theme="dark"] .quality-gate-panel li strong { color: #d6e3d3; }
+:root[data-theme="dark"] .criteria-review h3 { color: #b8cdb5; }
+:root[data-theme="dark"] .risk-assessment > div strong { color: #e2c98f; }
+:root[data-theme="dark"] .decision-actions > div strong { color: #dce6d9; }
+:root[data-theme="dark"] .decision-actions > div span { color: #b0bdae; }

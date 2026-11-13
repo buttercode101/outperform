@@ -23,6 +23,9 @@ test("final review prompt includes acceptance criteria and explicit constraints"
   assert.match(prompt, /HEURISTIC RISK ASSESSMENT/);
   assert.match(prompt, /DETERMINISTIC QUALITY GATE/);
   assert.match(prompt, /# Improved onboarding/);
+  assert.match(prompt, /OUTPUT CONTRACT/);
+  assert.match(prompt, /one criteriaCoverage entry for every explicit user requirement/);
+  assert.match(prompt, /Use UNVERIFIED rather than guessing/);
 });
 
 test("final review prompt clearly states when no additional constraints exist", () => {

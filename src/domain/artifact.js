@@ -1,6 +1,13 @@
 import { createHash, randomUUID } from "node:crypto";
 import { invariant } from "./errors.js";
 
+export const WORKFLOW_ARTIFACT_VERSIONS = Object.freeze({
+  BASELINE: 1,
+  PRIMARY: 2,
+  CHALLENGER: 3,
+  FINAL: 4
+});
+
 export function hashContent(content) {
   invariant(typeof content === "string", "INVALID_ARTIFACT_CONTENT", "Artifact content must be a string.");
   return createHash("sha256").update(content, "utf8").digest("hex");
