@@ -468,33 +468,73 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       return { status: "EVALUATING" };
     });
 
-    const evaluation = await step.do("independent-adjudication", async () => {
-      const evaluationText = await callModel(this.env, {
-        sessionId, stage: "ADJUDICATION",
-        system: "You are an independent evaluator. Compare both candidates against the objective, task type, requirements and constraints. Return ONLY one valid JSON object with keys preferred (exactly primary or challenger), rationale (maximum 60 words), strengths (array of 1-3 short strings), risks (array of 0-3 short strings), and improvementIdeas (array of 1-3 short strings). Keep each array item to 15 words or fewer. Do not add Markdown or prose outside JSON. Do not claim external verification, factual validation, code execution or test results. If uncertain, prefer primary and explain why.",
-        prompt: `OBJECTIVE: ${session.objective}\nTASK TYPE: ${session.task_type}\nTASK-SPECIFIC METHOD: ${taskMethod}\n${criteriaText}\n\nPRIMARY CANDIDATE:\n${primaryContent}\n\nCHALLENGER CANDIDATE:\n${challengerArtifact ? challengerContent : "(No challenger candidate was produced)"}\n\nCompare correctness, completeness, clarity, constraint adherence and usefulness. Return a compact, complete JSON object. This is a model evaluation, not external verification.`,
-        temperature: 0.1,
-        maxTokens: 1400
+    let evaluation;
+    if (challengerArtifact) {
+      const callsAvailableForAdjudication = Math.max(0, maxModelCalls - await countModelCallAttempts(this.env.DB, sessionId));
+      if (callsAvailableForAdjudication > 0) {
+        try {
+          evaluation = await runModelStep(step, "comparative-adjudication", Math.min(2, callsAvailableForAdjudication), async () => {
+            const evaluationText = await callModel(this.env, {
+              sessionId, stage: "ADJUDICATION", maxModelCalls,
+              system: "You are an evaluator. Compare both candidates against the objective, task type, requirements and constraints. Return ONLY one valid JSON object with keys preferred (exactly primary or challenger), rationale (maximum 60 words), strengths (array of 1-3 short strings), risks (array of 0-3 short strings), and improvementIdeas (array of 1-3 short strings). Keep each array item to 15 words or fewer. Do not add Markdown or prose outside JSON. Do not claim external verification, factual validation, code execution or test results. If uncertain, prefer primary and explain why.",
+              prompt: `OBJECTIVE: ${session.objective}\nTASK TYPE: ${session.task_type}\nTASK-SPECIFIC METHOD: ${taskMethod}\n${criteriaText}\n\nPRIMARY CANDIDATE:\n${primaryContent}\n\nCHALLENGER CANDIDATE:\n${challengerContent}\n\nCompare correctness, completeness, clarity, constraint adherence and usefulness. Return a compact, complete JSON object. This is a model evaluation, not external verification.`,
+              temperature: 0.1,
+              maxTokens: 1400
+            });
+            const parsed = parseAdjudicationResponse(evaluationText);
+            await recordEvent(this.env.DB, sessionId, "ADJUDICATION_COMPLETED", {
+              parsed: parsed.parsed !== false,
+              preferred: parsed.preferred,
+              rationale: parsed.rationale,
+              strengths: parsed.strengths,
+              risks: parsed.risks,
+              improvementIdeas: parsed.improvementIdeas
+            });
+            return parsed;
+          });
+        } catch (error) {
+          evaluation = fallbackEvaluation(`Automated comparison did not complete (${error.code ?? "provider error"}). The primary candidate is retained as the conservative default; compare the available artifacts manually.`);
+          await step.do("record-adjudication-failed", async () => {
+            await recordEvent(this.env.DB, sessionId, "ADJUDICATION_FAILED", {
+              code: error.code ?? "ADJUDICATION_ERROR",
+              message: String(error.message ?? "Adjudication failed").slice(0, 400),
+              evaluation
+            });
+            return { status: "ADJUDICATION_FAILED" };
+          });
+        }
+      } else {
+        evaluation = fallbackEvaluation("Automated comparison was skipped because the bounded provider-request budget was exhausted. Compare both candidates manually.");
+        await step.do("record-adjudication-skipped", async () => {
+          await recordEvent(this.env.DB, sessionId, "ADJUDICATION_SKIPPED", {
+            reason: evaluation.rationale,
+            evaluation
+          });
+          return { status: "ADJUDICATION_SKIPPED" };
+        });
+      }
+    } else {
+      const reason = plan.strategy === "NO_CHALLENGE"
+        ? "No challenger was selected by the risk and benefit planner. The primary candidate is retained for human review."
+        : "The challenger did not produce a usable candidate. The primary candidate is retained for human review.";
+      evaluation = fallbackEvaluation(reason);
+      await step.do("record-adjudication-skipped", async () => {
+        await recordEvent(this.env.DB, sessionId, "ADJUDICATION_SKIPPED", {
+          reason,
+          evaluation
+        });
+        return { status: "ADJUDICATION_SKIPPED" };
       });
-      const parsed = parseAdjudicationResponse(evaluationText);
-      await recordEvent(this.env.DB, sessionId, "ADJUDICATION_COMPLETED", {
-        parsed: true,
-        preferred: parsed.preferred,
-        rationale: parsed.rationale,
-        strengths: parsed.strengths,
-        risks: parsed.risks,
-        improvementIdeas: parsed.improvementIdeas
-      });
-      return parsed;
-    });
+    }
+
     const selectedArtifact = evaluation.preferred === "challenger" && challengerArtifact ? challengerArtifact : primaryArtifact;
     const selectedContent = evaluation.preferred === "challenger" && challengerArtifact ? challengerContent : primaryContent;
-    const budget = JSON.parse(session.budget_json);
     let finalArtifact = selectedArtifact;
     let finalContent = selectedContent;
     let finalReview = null;
 
-    if (budget.maxModelCalls >= 4) {
+    const callsAvailableForImprovement = Math.max(0, maxModelCalls - await countModelCallAttempts(this.env.DB, sessionId));
+    if (callsAvailableForImprovement > 0) {
       await step.do("mark-improving", async () => {
         await setStatus(this.env.DB, sessionId, "IMPROVING");
         await recordEvent(this.env.DB, sessionId, "FINAL_IMPROVEMENT_STARTED", {
@@ -502,23 +542,47 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         });
         return { status: "IMPROVING" };
       });
-      finalContent = await step.do("final-improvement", async () => callModel(this.env, {
-        sessionId, stage: "FINAL_IMPROVEMENT",
-        system: "You are OUTPERFORM's final improvement engine. Your job is to deliver a meaningfully better final artifact, not another critique. Integrate the strongest candidate material, fix the evaluator's identified weaknesses, satisfy every mandatory requirement and respect every constraint. Preserve correct content. Do not invent evidence, citations, tests or research. Make the output directly usable.",
-        prompt: `OBJECTIVE: ${session.objective}\nTASK TYPE: ${session.task_type}\nTASK-SPECIFIC METHOD: ${taskMethod}\n\n${criteriaText}\n\nBACKGROUND:\n${contextObject || "(No additional context supplied)"}\n\nBEST CANDIDATE:\n${selectedContent}\n\nCOMPARATIVE EVALUATION:\n${JSON.stringify(evaluation, null, 2)}\n\nProduce the strongest final version. Incorporate useful improvements, resolve identified risks where possible, and clearly label any uncertainty or work that still requires external verification.`,
-        temperature: 0.25,
-        maxTokens: 4500
-      }));
-      finalArtifact = await step.do("store-final-artifact", async () =>
-        storeArtifact(this.env, session, finalContent, "FINAL", WORKFLOW_ARTIFACT_VERSIONS.FINAL, selectedArtifact.id)
-      );
-      await step.do("record-final-improvement", async () => {
-        await recordEvent(this.env.DB, sessionId, "FINAL_IMPROVEMENT_COMPLETED", {
-          artifactId: finalArtifact.id,
-          contentHash: finalArtifact.contentHash,
-          basedOnArtifactId: selectedArtifact.id
+      let improvedContent = null;
+      try {
+        improvedContent = await runModelStep(step, "final-improvement", 1, async () => callModel(this.env, {
+          sessionId, stage: "FINAL_IMPROVEMENT", maxModelCalls,
+          system: "You are OUTPERFORM's final improvement engine. Your job is to deliver a meaningfully better final artifact, not another critique. Integrate the strongest candidate material, fix the evaluator's identified weaknesses, satisfy every mandatory requirement and respect every constraint. Preserve correct content. Do not invent evidence, citations, tests or research. Make the output directly usable.",
+          prompt: `OBJECTIVE: ${session.objective}\nTASK TYPE: ${session.task_type}\nTASK-SPECIFIC METHOD: ${taskMethod}\n\n${criteriaText}\n\nBACKGROUND:\n${contextObject || "(No additional context supplied)"}\n\nBEST CANDIDATE:\n${selectedContent}\n\nCOMPARATIVE EVALUATION:\n${JSON.stringify(evaluation, null, 2)}\n\nProduce the strongest final version. Incorporate useful improvements, resolve identified risks where possible, and clearly label any uncertainty or work that still requires external verification.`,
+          temperature: 0.25,
+          maxTokens: 4500
+        }));
+      } catch (error) {
+        await step.do("record-final-improvement-skipped", async () => {
+          await recordEvent(this.env.DB, sessionId, "FINAL_IMPROVEMENT_SKIPPED", {
+            basedOnArtifactId: selectedArtifact.id,
+            code: error.code ?? "FINAL_IMPROVEMENT_ERROR",
+            reason: String(error.message ?? "Final improvement did not complete").slice(0, 400)
+          });
+          return { status: "FINAL_IMPROVEMENT_SKIPPED" };
         });
-        return { artifactId: finalArtifact.id };
+      }
+      if (improvedContent) {
+        finalContent = improvedContent;
+        finalArtifact = await step.do("store-final-artifact", async () =>
+          storeArtifact(this.env, session, finalContent, "FINAL", WORKFLOW_ARTIFACT_VERSIONS.FINAL, selectedArtifact.id)
+        );
+        await step.do("record-final-improvement", async () => {
+          await recordEvent(this.env.DB, sessionId, "FINAL_IMPROVEMENT_COMPLETED", {
+            artifactId: finalArtifact.id,
+            contentHash: finalArtifact.contentHash,
+            basedOnArtifactId: selectedArtifact.id
+          });
+          return { artifactId: finalArtifact.id };
+        });
+      }
+    } else {
+      await step.do("record-final-improvement-skipped", async () => {
+        await recordEvent(this.env.DB, sessionId, "FINAL_IMPROVEMENT_SKIPPED", {
+          basedOnArtifactId: selectedArtifact.id,
+          code: "MODEL_BUDGET_EXHAUSTED",
+          reason: "No provider request budget remained for a final improvement pass."
+        });
+        return { status: "FINAL_IMPROVEMENT_SKIPPED" };
       });
     }
 
