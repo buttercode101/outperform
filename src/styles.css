@@ -778,3 +778,40 @@ button:disabled{cursor:not-allowed;opacity:.45}
   border-color: #45664a;
   color: #b8d5b6;
 }
+
+
+/* Explicit status for model-only final review outcomes */
+.final-review-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.final-review-heading h3 { margin: 0; }
+.final-review-status {
+  flex: 0 0 auto;
+  border: 1px solid #d8e1d4;
+  background: #edf2e9;
+  color: #405b43;
+  padding: 6px 8px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+.final-review-status.review-incomplete {
+  border-color: #e7d4b5;
+  background: #f6eee1;
+  color: #805a2c;
+}
+:root[data-theme="dark"] .final-review-status {
+  border-color: #45664a;
+  background: #203126;
+  color: #b8d5b6;
+}
+:root[data-theme="dark"] .final-review-status.review-incomplete {
+  border-color: #725a38;
+  background: #30271d;
+  color: #e3c08d;
+}
