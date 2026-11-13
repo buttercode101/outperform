@@ -354,6 +354,14 @@ try {
   assert.equal(persistedSession.session.bestArtifactId, final.id, "Session best-artifact pointer must resolve to the final artifact.");
   const modelUsageCount = await pageA.locator(".model-usage-panel li").count();
   assert.ok(modelUsageCount >= 4, "Provider usage must be recorded for the real generation workflow.");
+  const modelAttemptCount = (persistedSession.events || []).filter(event => event.event_type === "MODEL_CALL_STARTED").length;
+  assert.equal(modelAttemptCount, 5, "The standard run must complete its five stages without exceeding the hard provider-request budget.");
+  const dailyUsage = await pageA.evaluate(async () => {
+    const response = await fetch("/api/usage");
+    if (!response.ok) throw new Error("Could not read daily usage accounting.");
+    return response.json();
+  });
+  assert.equal(dailyUsage.modelCalls, modelAttemptCount, "Daily model-call accounting must include actual provider attempts.");
   const qualityGateCount = await pageA.locator(".quality-gate-panel li").count();
   assert.ok(qualityGateCount >= 4, "Deterministic quality gate must expose its individual checks.");
 
