@@ -29,7 +29,13 @@ function monitorBrowserErrors(page) {
 }
 monitorBrowserErrors(pageA);
 let nextPromptValue = "DELETE MY ACCOUNT";
+let dismissNextDialog = false;
 const autoConfirm = async dialog => {
+  if (dismissNextDialog) {
+    dismissNextDialog = false;
+    await dialog.dismiss();
+    return;
+  }
   if (dialog.type() === "prompt") await dialog.accept(nextPromptValue);
   else await dialog.accept();
 };
@@ -122,6 +128,17 @@ try {
   await pageA.locator("#guest-objective").fill("This unsaved edit must be discarded.");
   await pageA.getByRole("button", { name: "Cancel edit" }).click();
   assert.equal(await guestRow.locator("h3").innerText(), guestObjective, "Cancel edit must preserve the saved local brief.");
+  const disposableGuestObjective = "Disposable guest brief for destructive-path verification.";
+  await pageA.locator("#guest-objective").fill(disposableGuestObjective);
+  await pageA.getByRole("button", { name: "Save work brief" }).click();
+  const disposableGuestRow = pageA.locator(".guest-library .session-row").filter({ hasText: disposableGuestObjective });
+  await disposableGuestRow.waitFor({ state: "visible", timeout: 15000 });
+  dismissNextDialog = true;
+  await disposableGuestRow.getByRole("button", { name: "Delete" }).click();
+  await disposableGuestRow.waitFor({ state: "visible" });
+  await disposableGuestRow.getByRole("button", { name: "Delete" }).click();
+  await disposableGuestRow.waitFor({ state: "detached", timeout: 15000 });
+  assert.equal(await guestRow.count(), 1, "Deleting a disposable guest brief must not affect other saved briefs.");
   await pageA.getByRole("button", { name: "Sign in / Create account" }).click();
   await pageA.locator("#auth-name").waitFor({ state: "visible", timeout: 30000 });
   await pageA.getByRole("button", { name: "Continue without an account" }).click();
@@ -183,6 +200,18 @@ try {
   await pageA.locator(".composer").waitFor({ state: "detached" });
   await pageA.getByRole("button", { name: "New session" }).click();
   await pageA.locator("#task-type").selectOption("DOCUMENT");
+  await pageA.locator(".composer input[type='file']").setInputFiles({
+    name: "oversized-composer-context.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.alloc(100001, 97)
+  });
+  await pageA.getByText(/larger than 100 KB/).waitFor({ state: "visible" });
+  await pageA.locator(".composer input[type='file']").setInputFiles({
+    name: "composer-context.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("Imported composer context for end-to-end verification.")
+  });
+  assert.match(await pageA.locator("#context").inputValue(), /Imported composer context/);
   const composerPlaybookObjective = "Create a reusable QA runbook for a web application.";
   await pageA.locator("#objective").fill(composerPlaybookObjective);
   await pageA.locator("#requirements").fill("Preserve existing behavior.\nVerify every critical path.");
@@ -208,6 +237,9 @@ try {
   assert.match(await pageA.locator("#constraints").inputValue(), /Do not change production data/);
   await pageA.getByRole("button", { name: "Cancel" }).click();
   await pageA.getByRole("button", { name: "Playbooks" }).click();
+  dismissNextDialog = true;
+  await composerPlaybookCard.getByRole("button", { name: "Delete" }).click();
+  await composerPlaybookCard.waitFor({ state: "visible" });
   await composerPlaybookCard.getByRole("button", { name: "Delete" }).click();
   await composerPlaybookCard.waitFor({ state: "detached", timeout: 15000 });
 
@@ -505,7 +537,23 @@ try {
   await pageA.locator(".follow-up-panel").waitFor({ state: "visible", timeout: 20000 });
   const followUpFeedback = "Preserve the rollback decision tree, but make the smoke checks executable and clearly separate verified evidence from assumptions.";
   await pageA.locator("#follow-up-feedback").fill(followUpFeedback);
+  let simulatedStartInterruption = true;
+  await pageA.route("**/api/sessions/*/start", async route => {
+    if (simulatedStartInterruption && route.request().method() === "POST") {
+      simulatedStartInterruption = false;
+      await route.abort("failed");
+      return;
+    }
+    await route.continue();
+  });
   await pageA.locator(".follow-up-panel").getByRole("button", { name: "Run another improvement pass" }).click();
+  await pageA.unroute("**/api/sessions/*/start");
+  assert.equal(simulatedStartInterruption, false, "The follow-up start request must exercise the interrupted-start recovery path.");
+  await pageA.reload({ waitUntil: "networkidle", timeout: 45000 });
+  await pageA.locator(".app-shell").waitFor({ state: "visible", timeout: 30000 });
+  const manualRunButton = pageA.locator(".session-row").filter({ hasText: objective }).getByRole("button", { name: "Run" });
+  assert.equal(await manualRunButton.count(), 1, "A saved follow-up session whose first start was interrupted must offer a manual Run action.");
+  await manualRunButton.click();
 
   const followUpDeadline = Date.now() + 9 * 60 * 1000;
   let followUpSession = null;
@@ -588,10 +636,20 @@ try {
   assert.equal(isolation.foreignSessionStatus, 404, "A new tenant must not read another user's session.");
   assert.equal(isolation.foreignArtifactStatus, 404, "A new tenant must not read another user's artifact.");
 
+  dismissNextDialog = true;
+  await pageB.getByRole("button", { name: "Delete account" }).click();
+  await pageB.locator(".app-shell").waitFor({ state: "visible", timeout: 15000 });
+  const userBAfterCancelledDeletion = await pageB.evaluate(async () => (await (await fetch("/api/auth/get-session")).json())?.user?.id || null);
+  assert.equal(userBAfterCancelledDeletion, userBId, "Cancelling account deletion must preserve the signed-in account.");
   await pageB.getByRole("button", { name: "Delete account" }).click();
   await pageB.locator(".guest-screen").waitFor({ state: "visible", timeout: 30000 });
   userBDeleted = true;
 
+  dismissNextDialog = true;
+  await pageA.getByRole("button", { name: "Delete account" }).click();
+  await pageA.locator(".app-shell").waitFor({ state: "visible", timeout: 15000 });
+  const userAAfterCancelledDeletion = await pageA.evaluate(async () => (await (await fetch("/api/auth/get-session")).json())?.user?.id || null);
+  assert.equal(userAAfterCancelledDeletion, userAId, "Cancelling account deletion must preserve the signed-in account.");
   await pageA.getByRole("button", { name: "Delete account" }).click();
   await pageA.locator(".guest-screen").waitFor({ state: "visible", timeout: 30000 });
   userADeleted = true;
