@@ -23,6 +23,7 @@ jobs:
   backup:
     name: Export and verify production D1 and R2
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: production
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
