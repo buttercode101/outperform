@@ -338,7 +338,7 @@ function GuestWorkspace({ onSignIn, theme, onToggleTheme }) {
           <label htmlFor="guest-context">Existing work or context <span>Optional · paste or import a text file up to 100 KB</span></label>
           <input className="file-input" type="file" accept=".txt,.md,.markdown,.json,.csv,.html,.xml,.yaml,.yml" aria-label="Import a text file" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; if (file.size > 100000) { setNotice("This file is larger than 100 KB. Paste a smaller excerpt instead."); e.target.value = ""; return; } try { setContext(await file.text()); setNotice("Loaded " + file.name + " into the brief. It remains local until you export it."); } catch { setNotice("Could not read that file. Try a plain-text, Markdown, JSON or CSV file."); } e.target.value = ""; }} />
           <textarea id="guest-context" rows={4} value={context} onChange={e => setContext(e.target.value)} placeholder="Paste notes, a draft, requirements or background…" />
-          {notice && <p className="notice" role="status">{notice}</p>}
+          {notice && !showComposer && <p className="notice" role="status">{notice}</p>}
           <div className="guest-form-actions">{editingId && <button className="secondary-button" type="button" onClick={cancelEdit}>Cancel edit</button>}<button className="primary-button" type="submit" disabled={!objective.trim()}><Icon name="plus" /> {editingId ? "Save changes" : "Save work brief"} <Icon name="arrow" /></button></div>
           <p className="composer-note">Your brief stays in this browser. It is not sent to OUTPERFORM servers.</p>
         </form>
