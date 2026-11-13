@@ -695,3 +695,11 @@ button:disabled{cursor:not-allowed;opacity:.45}
 :root[data-theme="dark"] .risk-assessment > div strong { color: #e2c98f; }
 :root[data-theme="dark"] .decision-actions > div strong { color: #dce6d9; }
 :root[data-theme="dark"] .decision-actions > div span { color: #b0bdae; }
+
+
+@media(min-width:521px) and (max-width:900px){
+  .topbar-right{gap:10px}
+  .user-email{display:none}
+  .private-label{font-size:0;gap:0}
+  .private-label svg{width:15px;height:15px}
+}
