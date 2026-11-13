@@ -184,6 +184,12 @@ try {
   const challenger = artifactsByRole.get("CHALLENGER");
   const final = artifactsByRole.get("FINAL");
   assert.ok(baseline && primary && challenger && final, "All four artifact records must be persisted in D1.");
+  const adjudicationEvent = (persistedSession.events || []).find(event => event.event_type === "ADJUDICATION_COMPLETED");
+  const adjudication = adjudicationEvent?.payload;
+  assert.ok(adjudication?.parsed === true, "Independent adjudication must persist a successfully parsed structured result.");
+  assert.ok(["primary", "challenger"].includes(adjudication.preferred), "Adjudication must explicitly select a candidate.");
+  assert.ok(typeof adjudication.rationale === "string" && adjudication.rationale.length > 0, "Adjudication must include a rationale.");
+  assert.ok(Array.isArray(adjudication.strengths) && Array.isArray(adjudication.risks) && Array.isArray(adjudication.improvementIdeas), "Adjudication must include structured strengths, risks and improvement ideas.");
   const finalReviewEvent = (persistedSession.events || []).find(event => event.event_type === "FINAL_REVIEW_COMPLETED");
   const finalReview = finalReviewEvent?.payload?.review;
   assert.ok(finalReview && typeof finalReview.assessment === "string", "Final review must be persisted as structured data.");
