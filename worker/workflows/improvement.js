@@ -269,6 +269,11 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       return row;
     });
 
+    const budget = JSON.parse(session.budget_json || "{}");
+    const maxModelCalls = Number.isInteger(budget.maxModelCalls)
+      ? Math.max(1, Math.min(5, budget.maxModelCalls))
+      : 5;
+
     try {
     await step.do("mark-understanding", async () => {
       await setStatus(this.env.DB, sessionId, "UNDERSTANDING");
@@ -357,16 +362,12 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       return { status: "EXECUTING" };
     });
 
-    const primaryContent = await step.do(
-      "primary-performance",
-      { retries: { limit: 2, delay: "3 seconds", backoff: "exponential" } },
-      async () => callModel(this.env, {
-        sessionId, stage: "PRIMARY",
-        system: "You are the primary performance engine inside OUTPERFORM. Produce the strongest useful deliverable for the user's objective. Respect constraints, distinguish facts from assumptions, and do not claim tests or research were performed unless they were.",
-        prompt: `TASK TYPE: ${session.task_type}\nTASK-SPECIFIC METHOD: ${taskMethod}\nOBJECTIVE: ${session.objective}\nCONTEXT AND EXISTING WORK:\n${contextObject || "(No additional context supplied)"}\n\n${criteriaText}\n\nProduce a complete first attempt. State material assumptions and unresolved uncertainties.`,
-        temperature: 0.45
-      })
-    );
+    const primaryContent = await runModelStep(step, "primary-performance", maxModelCalls, async () => callModel(this.env, {
+      sessionId, stage: "PRIMARY", maxModelCalls,
+      system: "You are the primary performance engine inside OUTPERFORM. Produce the strongest useful deliverable for the user's objective. Respect constraints, distinguish facts from assumptions, and do not claim tests or research were performed unless they were.",
+      prompt: `TASK TYPE: ${session.task_type}\nTASK-SPECIFIC METHOD: ${taskMethod}\nOBJECTIVE: ${session.objective}\nCONTEXT AND EXISTING WORK:\n${contextObject || "(No additional context supplied)"}\n\n${criteriaText}\n\nProduce a complete first attempt. State material assumptions and unresolved uncertainties.`,
+      temperature: 0.45
+    }));
     const primaryArtifact = await step.do("store-primary-artifact", async () =>
       storeArtifact(this.env, session, primaryContent, "PRIMARY", WORKFLOW_ARTIFACT_VERSIONS.PRIMARY, baselineArtifact.id)
     );
@@ -387,12 +388,14 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       await recordEvent(this.env.DB, sessionId, "RISK_ASSESSMENT_COMPLETED", riskAssessment);
       return riskAssessment;
     });
+    const callsUsedAfterPrimary = await countModelCallAttempts(this.env.DB, sessionId);
+    const challengeAttemptBudget = Math.max(0, maxModelCalls - callsUsedAfterPrimary - 1);
     const plan = planChallenge({
       taskType: session.task_type,
       risk: riskAssessment.risk,
       uncertainty: riskAssessment.uncertainty,
-      remainingModelCalls: Math.max(0, JSON.parse(session.budget_json).maxModelCalls - 1),
-      remainingToolCalls: JSON.parse(session.budget_json).maxToolCalls ?? 0
+      remainingModelCalls: challengeAttemptBudget,
+      remainingToolCalls: 0
     });
 
     await step.do("record-challenge-plan", async () => {
