@@ -27,7 +27,7 @@ An account is required only when a user chooses a feature that needs identity, s
 - Access the same workspace across devices.
 - Save and reuse private playbooks with custom objectives, requirements and constraints.
 - Start up to 10 AI workflows per UTC day. Saving or importing briefs does not consume a run; the allowance is reserved only when execution starts. Each run is capped at five model calls.
-- Permanently delete the account, saved sessions, playbooks and R2 artifacts through an explicit typed confirmation.
+- Delete the live account, saved sessions, playbooks and R2 artifacts through an explicit typed confirmation. Private disaster-recovery snapshots may retain historical copies; do not describe deletion as complete erasure from backups.
 
 Registration is free. A user should never be redirected to registration merely to view the public product or create/export a local brief. Explain the value of account-only capabilities at the point the user chooses them.
 

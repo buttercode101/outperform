@@ -22,7 +22,9 @@ Internal implementation record — not a substitute for reviewed public Privacy 
 
 The authenticated DELETE /api/account endpoint requires the exact confirmation phrase DELETE MY ACCOUNT. It deletes R2 context/artifact objects first, then removes the user's work sessions and Better Auth user record in a D1 batch. Session child records cascade from work_sessions; playbooks and daily usage cascade from the user record.
 
-If R2 cleanup fails, the endpoint retains the account and returns an error rather than reporting successful deletion. Partial R2 cleanup may have occurred and a retry may be required.
+The endpoint enumerates all R2 objects under each owned session prefix, in addition to metadata-referenced legacy keys. If enumeration or deletion fails, it retains the account and returns an error rather than reporting successful deletion. Partial R2 cleanup may have occurred and a retry may be required.
+
+Private SQL snapshots are stored separately from live session objects. The current system does not yet apply deletion tombstones when restoring an older snapshot, so an old restore could reintroduce an account deleted after that snapshot was taken. Do not claim permanent erasure from disaster-recovery copies until snapshot retention and deletion replay are implemented.
 
 ## Security boundaries
 

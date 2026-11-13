@@ -154,6 +154,9 @@ try {
   const mobileOverviewWidth = await pageA.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth));
   assert.ok(mobileOverviewWidth <= 376, "Authenticated overview must not overflow at 375px.");
   assert.ok(await pageA.getByRole("button", { name: "Delete account" }).isVisible(), "Account deletion must remain accessible on mobile.");
+  assert.equal(await pageA.locator(".avatar").isVisible(), false, "Decorative account avatar must not wrap onto a second mobile header row.");
+  assert.equal(await pageA.locator(".breadcrumb-root").isVisible(), false, "Mobile breadcrumb must show only the current workspace view.");
+  assert.equal(await pageA.locator(".breadcrumb-current").isVisible(), true, "Current workspace view must remain visible on mobile.");
   await pageA.screenshot({ path: outputDir + "/authenticated-overview-light-mobile.png", fullPage: true });
   await pageA.setViewportSize({ width: 320, height: 850 });
   const narrowOverviewWidth = await pageA.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth));
@@ -245,6 +248,7 @@ try {
     await pageA.waitForTimeout(5000);
   }
   assert.ok(session?.id && session.status === "AWAITING_APPROVAL", "Real AI workflow must reach human approval within nine minutes.");
+  await pageA.locator(".session-filters").waitFor({ state: "visible", timeout: 15000 });
 
   await pageA.getByRole("textbox", { name: "Search sessions" }).fill("this session does not exist");
   await pageA.locator(".compact-empty").waitFor({ state: "visible" });
