@@ -205,7 +205,9 @@ try {
     mimeType: "text/markdown",
     buffer: Buffer.alloc(100001, 97)
   });
-  await pageA.getByText(/larger than 100 KB/).waitFor({ state: "visible" });
+  const composerFileNotice = pageA.locator(".composer").getByRole("alert").filter({ hasText: /larger than 100 KB/ });
+  await composerFileNotice.waitFor({ state: "visible" });
+  assert.equal(await pageA.locator(".app-shell .notice[role='status']").count(), 0, "Composer errors must not be duplicated in the background workspace.");
   await pageA.locator(".composer input[type='file']").setInputFiles({
     name: "composer-context.md",
     mimeType: "text/markdown",
