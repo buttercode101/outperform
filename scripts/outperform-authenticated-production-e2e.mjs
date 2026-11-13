@@ -238,6 +238,50 @@ try {
   assert.equal(await pageA.locator("html").getAttribute("data-theme"), "dark");
   await sessionRow.getByRole("button", { name: "Review" }).click();
   await pageA.locator(".review-panel").waitFor({ state: "visible", timeout: 30000 });
+  await pageA.locator(".final-review-summary").waitFor({ state: "visible", timeout: 20000 });
+  await pageA.locator(".model-usage-panel").waitFor({ state: "visible", timeout: 20000 });
+  const darkReviewContrast = await pageA.evaluate(() => {
+    const parse = value => (value.match(/[\\d.]+/g) || []).slice(0, 3).map(Number);
+    const luminance = value => {
+      const channels = parse(value).map(channel => {
+        const normalized = channel / 255;
+        return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+    };
+    const contrast = (foreground, background) => {
+      const a = luminance(foreground), b = luminance(background);
+      return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    };
+    const selectors = {
+      reviewMeta: ".review-meta",
+      modelUsage: ".model-usage-panel li",
+      modelStage: ".model-usage-panel li span:first-child",
+      qualityGate: ".quality-gate-panel li strong",
+      criteriaHeading: ".criteria-review h3",
+      riskLabel: ".risk-assessment > div strong",
+      decisionHeading: ".decision-actions > div strong",
+      decisionHint: ".decision-actions > div span"
+    };
+    return Object.entries(selectors).map(([name, selector]) => {
+      const element = document.querySelector(selector);
+      if (!element) return { name, missing: true, ratio: 0 };
+      const foreground = getComputedStyle(element).color;
+      let ancestor = element, background = "rgb(17, 23, 18)";
+      while (ancestor) {
+        const candidate = getComputedStyle(ancestor).backgroundColor;
+        if (candidate && candidate !== "rgba(0, 0, 0, 0)" && candidate !== "transparent") {
+          background = candidate;
+          break;
+        }
+        ancestor = ancestor.parentElement;
+      }
+      return { name, foreground, background, ratio: contrast(foreground, background) };
+    });
+  });
+  for (const check of darkReviewContrast) {
+    assert.ok(!check.missing && check.ratio >= 4.5, "Dark review text must meet WCAG AA contrast: " + JSON.stringify(check));
+  }
   await pageA.screenshot({ path: outputDir + "/review-dark-mobile.png", fullPage: true });
   await pageA.setViewportSize({ width: 1440, height: 1000 });
 
