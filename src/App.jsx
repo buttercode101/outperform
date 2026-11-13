@@ -884,7 +884,7 @@ export default function App() {
 
       <main className="main-content">
         <header className="topbar">
-          <div className="breadcrumb">Workspace <span>/</span> {activeView === "overview" ? "Overview" : activeView === "playbooks" ? "Playbooks" : "Performance"}</div>
+          <div className="breadcrumb"><span className="breadcrumb-root">Workspace</span><span className="breadcrumb-separator">/</span><span className="breadcrumb-current">{activeView === "overview" ? "Overview" : activeView === "playbooks" ? "Playbooks" : "Performance"}</span></div>
           <div className="topbar-right"><ThemeToggle theme={theme} onToggle={toggleTheme} /><span className="private-label"><Icon name="shield" /> Private workspace</span><span className="user-email">{authSession.user.email}</span><button className="delete-account-button" disabled={accountDeleteBusy} onClick={deleteAccount}>{accountDeleteBusy ? "Deleting…" : "Delete account"}</button><button className="signout-button" onClick={async () => { await authClient.signOut(); window.location.replace("/"); }}>Sign out</button><div className="avatar">{(authSession.user.name || "O").slice(0,1).toUpperCase()}</div></div>
         </header>
 
