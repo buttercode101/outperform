@@ -1,6 +1,7 @@
 import { createSession } from "../src/domain/session.js";
 import { normalizeSessionBudget } from "../src/domain/budget.js";
 import { createAuth } from "./auth.js";
+import { collectAccountObjectKeys } from "./account-deletion.js";
 
 export { ImprovementWorkflow } from "./workflows/improvement.js";
 
@@ -16,6 +17,41 @@ const json = (data, status = 200) => new Response(JSON.stringify(data), {
 });
 
 const error = (code, message, status) => json({ error: code, message }, status);
+
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+  "object-src 'none'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com data:",
+  "img-src 'self' data: blob:",
+  "media-src 'self' blob:",
+  "connect-src 'self'",
+  "worker-src 'self' blob:"
+].join("; ");
+
+function withSecurityHeaders(response, requestUrl) {
+  const headers = new Headers(response.headers);
+  headers.set("content-security-policy", CONTENT_SECURITY_POLICY);
+  headers.set("x-content-type-options", "nosniff");
+  headers.set("referrer-policy", "strict-origin-when-cross-origin");
+  headers.set("x-frame-options", "DENY");
+  headers.set("permissions-policy", "camera=(), microphone=(), geolocation=()");
+  headers.set("cross-origin-opener-policy", "same-origin");
+  headers.set("cross-origin-resource-policy", "same-origin");
+  headers.set("x-permitted-cross-domain-policies", "none");
+  if (new URL(requestUrl).protocol === "https:") {
+    headers.set("strict-transport-security", "max-age=31536000; includeSubDomains");
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  });
+}
 
 async function sha256Hex(value) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
@@ -153,18 +189,15 @@ async function handleApi(request, env) {
       if (body?.confirmation !== "DELETE MY ACCOUNT") {
         return error("CONFIRMATION_REQUIRED", "Send the exact confirmation text to delete this account.", 400);
       }
-      const [artifactRows, contextRows] = await Promise.all([
-        env.DB.prepare(
-          "SELECT a.object_key FROM artifacts a INNER JOIN work_sessions s ON s.id = a.session_id WHERE s.owner_id = ?"
-        ).bind(user.id).all(),
-        env.DB.prepare(
-          "SELECT context_object_key FROM work_sessions WHERE owner_id = ? AND context_object_key IS NOT NULL"
-        ).bind(user.id).all()
-      ]);
-      const objectKeys = [...new Set([
-        ...(artifactRows.results ?? []).map((item) => item.object_key),
-        ...(contextRows.results ?? []).map((item) => item.context_object_key)
-      ].filter(Boolean))];
+      let objectKeys;
+      try {
+        objectKeys = await collectAccountObjectKeys(env, user.id);
+      } catch (cleanupError) {
+        console.error("OUTPERFORM account deletion stopped because stored objects could not be fully enumerated", {
+          userId: user.id, message: cleanupError.message
+        });
+        return error("ACCOUNT_DATA_CLEANUP_FAILED", "Stored files could not be fully enumerated. The account was retained; retry after storage recovers.", 503);
+      }
       const deletions = await Promise.allSettled(objectKeys.map((key) => env.ARTIFACTS.delete(key)));
       const failedDeletes = deletions.filter((result) => result.status === "rejected");
       if (failedDeletes.length) {
@@ -332,21 +365,24 @@ async function handleApi(request, env) {
       }
       const now = new Date().toISOString();
       const nextStatus = decision === "APPROVE" ? "COMPLETED" : "CANCELLED";
-      const update = await env.DB.prepare(
-        "UPDATE work_sessions SET status = ?, version = version + 1, updated_at = ? WHERE id = ? AND owner_id = ? AND status = 'AWAITING_APPROVAL'"
-      ).bind(nextStatus, now, sessionId, user.id).run();
-      if ((update.meta?.changes ?? 0) !== 1) {
-        return error("DECISION_NOT_ALLOWED", "This session is no longer awaiting a decision.", 409);
-      }
-      await env.DB.batch([
+      const results = await env.DB.batch([
         env.DB.prepare(
-          "INSERT INTO approvals (id, session_id, action, status, requested_at, decided_at, decided_by) VALUES (?, ?, ?, ?, ?, ?, ?)"
+          "UPDATE work_sessions SET status = ?, version = version + 1, updated_at = ? WHERE id = ? AND owner_id = ? AND status = 'AWAITING_APPROVAL'"
+        ).bind(nextStatus, now, sessionId, user.id),
+        env.DB.prepare(
+          "INSERT INTO approvals (id, session_id, action, status, requested_at, decided_at, decided_by) SELECT ?, ?, ?, ?, ?, ?, ? WHERE changes() = 1"
         ).bind(crypto.randomUUID(), sessionId, decision, decision === "APPROVE" ? "APPROVED" : "REJECTED", now, now, user.id),
         env.DB.prepare(
-          "INSERT INTO session_events (id, session_id, event_type, payload_json, occurred_at) VALUES (?, ?, ?, ?, ?)"
+          "INSERT INTO session_events (id, session_id, event_type, payload_json, occurred_at) SELECT ?, ?, ?, ?, ? WHERE changes() = 1"
         ).bind(crypto.randomUUID(), sessionId, decision === "APPROVE" ? "HUMAN_APPROVED" : "HUMAN_REJECTED",
           JSON.stringify({ decision, resultingStatus: nextStatus, decidedBy: user.id }), now)
       ]);
+      if ((results[0]?.meta?.changes ?? 0) !== 1) {
+        return error("DECISION_NOT_ALLOWED", "This session is no longer awaiting a decision.", 409);
+      }
+      if ((results[1]?.meta?.changes ?? 0) !== 1 || (results[2]?.meta?.changes ?? 0) !== 1) {
+        throw new Error("Decision status and audit records were not committed together.");
+      }
       return json({ sessionId, decision, status: nextStatus });
     }
 
@@ -452,10 +488,10 @@ async function handleApi(request, env) {
 export default {
   async fetch(request, env, ctx) {
     try {
-      return await handleApi(request, env);
+      return withSecurityHeaders(await handleApi(request, env), request.url);
     } catch (e) {
       console.error("OUTPERFORM request failed", { code: e.code ?? "UNEXPECTED_ERROR", message: e.message });
-      return error("INTERNAL_ERROR", "The request could not be completed.", 500);
+      return withSecurityHeaders(error("INTERNAL_ERROR", "The request could not be completed.", 500), request.url);
     }
   }
 };
