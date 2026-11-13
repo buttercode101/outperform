@@ -1,0 +1,44 @@
+name: Production Restore Rehearsal
+
+on:
+  schedule:
+    - cron: "0 3 1 * *"
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Production D1 and R2 Backup"]
+    types: [completed]
+    branches: [main]
+  push:
+    branches: [ops/production-backup-recovery]
+    paths:
+      - "scripts/outperform-restore-smoke.mjs"
+      - ".github/workflows/restore-rehearsal.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: outperform-production-operations
+  cancel-in-progress: false
+
+jobs:
+  restore-smoke:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    name: Restore D1 and verify R2 snapshot integrity
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      R2_BUCKET_NAME: outperform-artifacts-prod
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Restore latest snapshot into an isolated temporary D1 database
+        run: node scripts/outperform-restore-smoke.mjs
