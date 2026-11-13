@@ -19,6 +19,12 @@ page.on("console", message => { if (message.type() === "error") errors.push(mess
 try {
   const response = await page.goto(baseURL, { waitUntil: "networkidle", timeout: 45000 });
   assert.ok(response?.ok(), `Production entry returned HTTP ${response?.status()}`);
+  const securityHeaders = response.headers();
+  assert.match(securityHeaders["content-security-policy"] || "", /default-src 'self'/, "Production HTML must ship a restrictive Content Security Policy.");
+  assert.match(securityHeaders["content-security-policy"] || "", /frame-ancestors 'none'/, "Production HTML must prevent framing.");
+  assert.match(securityHeaders["strict-transport-security"] || "", /max-age=31536000/, "Production HTTPS responses must enable HSTS.");
+  assert.equal(securityHeaders["x-content-type-options"], "nosniff", "Production responses must prevent MIME sniffing.");
+  assert.equal(securityHeaders["x-frame-options"], "DENY", "Production responses must deny legacy framing.");
   await page.locator(".guest-hero h1").waitFor({ state: "visible", timeout: 20000 });
   assert.match(await page.locator(".guest-hero h1").innerText(), /No account required/);
   assert.equal(await page.locator("#guest-objective").count(), 1);
