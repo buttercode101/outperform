@@ -4,7 +4,7 @@ import { planChallenge, buildChallengeInstructions } from "../src/domain/challen
 
 test("selects a challenge appropriate to code work", () => {
   const plan = planChallenge({ taskType: "CODE", risk: "HIGH", uncertainty: 0.8 });
-  assert.ok(["ADVERSARIAL_REVIEW", "COUNTEREXAMPLE_SEARCH", "INDEPENDENT_SOLUTION", "SECOND_LOOK", "CONFIDENCE_CHALLENGE"].includes(plan.strategy));
+  assert.ok(["ADVERSARIAL_REVIEW", "COUNTEREXAMPLE_GENERATION", "INDEPENDENT_SOLUTION", "SECOND_LOOK", "CONFIDENCE_CHALLENGE"].includes(plan.strategy));
   assert.ok(plan.expectedValue > 0);
 });
 
