@@ -298,6 +298,12 @@ try {
   await pageA.locator(".quality-gate-panel").waitFor({ state: "visible", timeout: 20000 });
   await pageA.locator(".final-review-summary").waitFor({ state: "visible", timeout: 20000 });
   await pageA.locator(".model-usage-panel").waitFor({ state: "visible", timeout: 20000 });
+  const challengeReport = pageA.locator(".challenge-report");
+  await challengeReport.waitFor({ state: "visible", timeout: 20000 });
+  const challengeReportText = await challengeReport.innerText();
+  assert.match(challengeReportText, /Model-only/, "The review screen must disclose the actual model-only challenge mode.");
+  assert.match(challengeReportText, /No external search/, "The review screen must not imply external search was performed.");
+  assert.match(challengeReportText, /Challenger artifact recorded/, "The challenge report must confirm the challenger output was persisted.");
 
   const artifactTabs = pageA.locator(".artifact-tab");
   const artifactCount = await artifactTabs.count();
@@ -323,6 +329,13 @@ try {
   assert.ok(["primary", "challenger"].includes(adjudication.preferred), "Adjudication must explicitly select a candidate.");
   assert.ok(typeof adjudication.rationale === "string" && adjudication.rationale.length > 0, "Adjudication must include a rationale.");
   assert.ok(Array.isArray(adjudication.strengths) && Array.isArray(adjudication.risks) && Array.isArray(adjudication.improvementIdeas), "Adjudication must include structured strengths, risks and improvement ideas.");
+  const challengeExecutionEvent = (persistedSession.events || []).find(event => event.event_type === "CHALLENGE_EXECUTION_MODE_RECORDED");
+  assert.equal(challengeExecutionEvent?.payload?.executionMode, "MODEL_ONLY", "The challenge execution mode must be recorded.");
+  assert.equal(challengeExecutionEvent?.payload?.externalSearchPerformed, false, "Model-only challenge must not claim external search.");
+  assert.equal(challengeExecutionEvent?.payload?.primaryCandidateProvided, true, "The selected adversarial strategy must receive the candidate it is meant to challenge.");
+  const challengePlanEvent = (persistedSession.events || []).find(event => event.event_type === "CHALLENGE_PLAN_SELECTED");
+  assert.equal(challengePlanEvent?.payload?.estimatedCost, 1, "The challenge plan must budget one actual model request.");
+  assert.equal(challengePlanEvent?.payload?.toolCallsRequired, 0, "The model-only challenge must not reserve nonexistent tool calls.");
   const finalReviewEvent = (persistedSession.events || []).find(event => event.event_type === "FINAL_REVIEW_COMPLETED");
   const finalReview = finalReviewEvent?.payload?.review;
   assert.ok(finalReview && typeof finalReview.assessment === "string", "Final review must be persisted as structured data.");
@@ -363,7 +376,16 @@ try {
     assert.ok(mobileReviewDimensions.document <= width + 1, "Review workspace must not overflow at " + width + "px: " + JSON.stringify(mobileReviewDimensions));
     assert.ok(mobileReviewDimensions.panel <= mobileReviewDimensions.panelClient + 1, "Review panel content must not overflow horizontally at " + width + "px.");
   }
-  await pageA.setViewportSize({ width: 375, height: 850 });
+  const mobilePanelMetrics = await pageA.locator(".review-panel").evaluate(element => ({
+    scrollHeight: element.scrollHeight,
+    clientHeight: element.clientHeight,
+    overflowY: getComputedStyle(element).overflowY
+  }));
+  assert.ok(mobilePanelMetrics.scrollHeight > mobilePanelMetrics.clientHeight, "Long review content must scroll inside the mobile review panel.");
+  assert.ok(["auto", "scroll"].includes(mobilePanelMetrics.overflowY), "Mobile review panel must expose vertical scrolling.");
+  await pageA.locator(".decision-actions").scrollIntoViewIfNeeded();
+  assert.ok(await pageA.getByRole("button", { name: "Approve result" }).isVisible(), "The human decision controls must remain reachable at the bottom of the mobile review panel.");
+  await pageA.locator(".review-panel").evaluate(element => { element.scrollTop = 0; });
   await pageA.screenshot({ path: outputDir + "/review-light-mobile.png", fullPage: true });
   await pageA.getByRole("button", { name: "Close" }).click();
   await pageA.getByRole("button", { name: "Switch to dark mode" }).click();
