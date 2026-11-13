@@ -421,11 +421,9 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         });
         return { strategy: challengeSpec.strategy, executionMode: "MODEL_ONLY" };
       });
-      challengerContent = await step.do(
-        "independent-challenge",
-        { retries: { limit: 2, delay: "3 seconds", backoff: "exponential" } },
-        async () => callModel(this.env, {
-          sessionId, stage: "CHALLENGER",
+      try {
+        challengerContent = await runModelStep(step, "independent-challenge", challengeAttemptBudget, async () => callModel(this.env, {
+          sessionId, stage: "CHALLENGER", maxModelCalls,
           model: this.env.OPENROUTER_CHALLENGER_MODEL || this.env.OPENROUTER_MODEL,
           system: `You are OUTPERFORM's challenger engine. Execute the selected challenge method exactly. ${challengeSpec.instructions} Produce a complete, directly usable alternative deliverable. Respect every mandatory requirement and constraint. Separate facts, assumptions and uncertainty. Never invent external sources, searches, execution results, tests or verification. This is a model-only challenge, not an external tool or human specialist review.`,
           prompt: [
@@ -440,17 +438,28 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
             "Produce the complete alternative required by the selected strategy. State assumptions, uncertainty and any work that still needs external verification."
           ].join("\n\n"),
           temperature: 0.65
-        })
-      );
-      challengerArtifact = await step.do("store-challenger-artifact", async () =>
-        storeArtifact(this.env, session, challengerContent, "CHALLENGER", WORKFLOW_ARTIFACT_VERSIONS.CHALLENGER, baselineArtifact.id)
-      );
-      await step.do("record-challenger", async () => {
-        await recordEvent(this.env.DB, sessionId, "CHALLENGE_COMPLETED", {
-          strategy: plan.strategy, artifactId: challengerArtifact.id
+        }));
+      } catch (error) {
+        await step.do("record-challenge-failure", async () => {
+          await recordEvent(this.env.DB, sessionId, "CHALLENGE_FAILED", {
+            strategy: plan.strategy,
+            code: error.code ?? "CHALLENGE_ERROR",
+            message: String(error.message ?? "Challenger request failed").slice(0, 400)
+          });
+          return { status: "CHALLENGE_FAILED" };
         });
-        return { artifactId: challengerArtifact.id };
-      });
+      }
+      if (challengerContent) {
+        challengerArtifact = await step.do("store-challenger-artifact", async () =>
+          storeArtifact(this.env, session, challengerContent, "CHALLENGER", WORKFLOW_ARTIFACT_VERSIONS.CHALLENGER, baselineArtifact.id)
+        );
+        await step.do("record-challenger", async () => {
+          await recordEvent(this.env.DB, sessionId, "CHALLENGE_COMPLETED", {
+            strategy: plan.strategy, artifactId: challengerArtifact.id
+          });
+          return { artifactId: challengerArtifact.id };
+        });
+      }
     }
 
     await step.do("mark-evaluating", async () => {
