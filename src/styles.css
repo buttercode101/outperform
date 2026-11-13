@@ -682,3 +682,16 @@ button:disabled{cursor:not-allowed;opacity:.45}
   :root[data-theme="dark"] .insights-panel,
   :root[data-theme="dark"] .playbook-card { transition: none; }
 }
+
+
+/* Dark-theme contrast for review details and decision controls */
+:root[data-theme="dark"] .review-meta { color: #b8c6b5; }
+:root[data-theme="dark"] .model-usage-panel ul,
+:root[data-theme="dark"] .model-usage-panel li { border-color: #354638; }
+:root[data-theme="dark"] .model-usage-panel li { color: #b8c6b5; }
+:root[data-theme="dark"] .model-usage-panel li span:first-child { color: #d6e3d3; }
+:root[data-theme="dark"] .quality-gate-panel li strong { color: #d6e3d3; }
+:root[data-theme="dark"] .criteria-review h3 { color: #b8cdb5; }
+:root[data-theme="dark"] .risk-assessment > div strong { color: #e2c98f; }
+:root[data-theme="dark"] .decision-actions > div strong { color: #dce6d9; }
+:root[data-theme="dark"] .decision-actions > div span { color: #b0bdae; }
