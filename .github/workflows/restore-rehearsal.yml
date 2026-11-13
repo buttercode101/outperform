@@ -11,14 +11,13 @@ on:
   push:
     branches: [ops/production-backup-recovery]
     paths:
-      - "scripts/outperform-restore-smoke.mjs"
-      - ".github/workflows/restore-rehearsal.yml"
+      - "docs/restore-rehearsal-trigger.md"
 
 permissions:
   contents: read
 
 concurrency:
-  group: outperform-production-operations
+  group: outperform-restore-rehearsal
   cancel-in-progress: false
 
 jobs:
