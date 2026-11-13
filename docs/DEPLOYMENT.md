@@ -61,3 +61,11 @@ A green deployment is only the start. Verify all of the following against the de
 ## Recovery and operations
 
 Before broad launch, document and test D1 backup/restore, R2 artifact retention/recovery, secret rotation, provider outage handling, log access, incident response and data deletion/retention. Establish alerts for failed workflows, rising provider error rates, unexpected usage spikes and storage failures.
+
+
+## Recovery verification — 13 November 2026
+
+- A production D1 SQL snapshot was restored into an isolated temporary D1 database using the Cloudflare D1 multi-statement execution path. All 81 statements completed; the restored database contained 19 tables and six migration records, and `PRAGMA foreign_key_check` returned no violations.
+- The temporary database was deleted after verification. Production D1 and the original production session were not modified.
+- The snapshot predates a later account deletion. It still contained that historical test account and a context-object reference whose R2 object had since been deleted. This demonstrates that a D1 snapshot alone is not a complete point-in-time recovery of D1 plus R2, and older snapshots must not be restored directly to production without reconciling later account deletions and checking every referenced R2 object.
+- Existing R2 SQL snapshots are private, but automated full D1+R2 snapshot creation, retention, and deletion-tombstone replay are not yet configured. This remains a release-readiness gap.
