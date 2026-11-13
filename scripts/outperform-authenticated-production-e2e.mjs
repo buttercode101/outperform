@@ -374,6 +374,71 @@ try {
   await savedPlaybook.getByRole("button", { name: "Delete" }).click();
   await savedPlaybook.waitFor({ state: "detached", timeout: 15000 });
 
+  // Exercise the follow-up workflow and the destructive rejection decision.
+  await pageA.getByRole("button", { name: "Overview" }).click();
+  await sessionRow.getByRole("button", { name: "Review" }).click();
+  await pageA.locator(".follow-up-panel").waitFor({ state: "visible", timeout: 20000 });
+  const followUpFeedback = "Preserve the rollback decision tree, but make the smoke checks executable and clearly separate verified evidence from assumptions.";
+  await pageA.locator("#follow-up-feedback").fill(followUpFeedback);
+  await pageA.locator(".follow-up-panel").getByRole("button", { name: "Run another improvement pass" }).click();
+
+  const followUpDeadline = Date.now() + 9 * 60 * 1000;
+  let followUpSession = null;
+  while (Date.now() < followUpDeadline) {
+    const listing = await pageA.evaluate(async () => {
+      const response = await fetch("/api/sessions");
+      if (!response.ok) throw new Error("Follow-up session list returned HTTP " + response.status);
+      return await response.json();
+    });
+    followUpSession = (listing.sessions || []).find(item => item.id !== sessionId && item.objective === objective);
+    if (followUpSession) {
+      if (["FAILED", "CANCELLED", "BLOCKED"].includes(followUpSession.status)) {
+        throw new Error("Follow-up workflow ended in " + followUpSession.status);
+      }
+      if (followUpSession.status === "AWAITING_APPROVAL") break;
+    }
+    await pageA.waitForTimeout(5000);
+  }
+  assert.ok(followUpSession?.id && followUpSession.status === "AWAITING_APPROVAL", "Follow-up improvement pass must reach human review.");
+  const followUpDetail = await pageA.evaluate(async id => {
+    const response = await fetch("/api/sessions/" + id);
+    if (!response.ok) throw new Error("Follow-up detail returned HTTP " + response.status);
+    return await response.json();
+  }, followUpSession.id);
+  assert.ok(followUpDetail.session.context.includes(followUpFeedback), "Follow-up context must preserve the user's new direction.");
+
+  const matchingRows = pageA.locator(".session-row").filter({ hasText: objective });
+  let followUpReviewOpened = false;
+  for (let index = 0; index < await matchingRows.count(); index += 1) {
+    await matchingRows.nth(index).getByRole("button", { name: "Review" }).click();
+    await pageA.locator(".review-panel").waitFor({ state: "visible", timeout: 20000 });
+    if (await pageA.locator(".decision-actions").count()) {
+      followUpReviewOpened = true;
+      break;
+    }
+    await pageA.getByRole("button", { name: "Close" }).click();
+  }
+  assert.ok(followUpReviewOpened, "The follow-up session must expose its approval/rejection controls.");
+  await pageA.locator(".decision-actions").getByRole("button", { name: "Reject result" }).click();
+  let rejectedStatus = null;
+  const rejectionDeadline = Date.now() + 30000;
+  while (Date.now() < rejectionDeadline) {
+    rejectedStatus = await getSessionStatus(pageA, followUpSession.id);
+    if (rejectedStatus === "CANCELLED") break;
+    await pageA.waitForTimeout(1000);
+  }
+  assert.equal(rejectedStatus, "CANCELLED", "Rejecting a follow-up must close it as CANCELLED.");
+  const duplicateDecisionStatus = await pageA.evaluate(async id => {
+    const response = await fetch("/api/sessions/" + id + "/decision", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ decision: "APPROVE" })
+    });
+    return response.status;
+  }, followUpSession.id);
+  assert.equal(duplicateDecisionStatus, 409, "A rejected session must reject a second, conflicting decision.");
+  assert.equal(await getSessionStatus(pageA, sessionId), "COMPLETED", "The original approved session must remain unchanged after the follow-up is rejected.");
+
   contextB = await browser.newContext({ viewport: { width: 1440, height: 1000 }, acceptDownloads: true });
   pageB = await contextB.newPage();
   pageB.on("dialog", autoConfirm);
