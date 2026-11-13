@@ -89,6 +89,8 @@ if (sqlBytes.length !== manifest.database.sqlBytes) throw new Error("Stored D1 S
 
 const tempName = "outperform-restore-smoke-" + Date.now();
 let tempDatabaseId;
+let temporaryDatabaseDeleted = false;
+let resultSummary;
 try {
   const created = await jsonApi("/accounts/" + accountId + "/d1/database", {
     method: "POST",
@@ -131,7 +133,7 @@ try {
     return object.sourceKey;
   });
 
-  console.log(JSON.stringify({
+  resultSummary = {
     success: true,
     manifestKey,
     backupId: manifest.backupId,
@@ -140,11 +142,12 @@ try {
     restoredMigrations: migrationCount,
     foreignKeyViolations,
     restoredObjectReferences: restoredReferences.length,
-    verifiedR2Objects: verifiedObjects.length,
-    temporaryDatabaseDeletedAfterTest: true
-  }, null, 2));
+    verifiedR2Objects: verifiedObjects.length
+  };
 } finally {
   if (tempDatabaseId) {
     await jsonApi("/accounts/" + accountId + "/d1/database/" + tempDatabaseId, { method: "DELETE" });
+    temporaryDatabaseDeleted = true;
   }
 }
+console.log(JSON.stringify({ ...resultSummary, temporaryDatabaseDeleted }, null, 2));
