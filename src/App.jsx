@@ -410,7 +410,7 @@ export default function App() {
 
 
   async function deleteAccount() {
-    const confirmation = window.prompt("This permanently deletes your account, sessions, playbooks and stored artifacts. Type DELETE MY ACCOUNT to continue.");
+    const confirmation = window.prompt("This deletes your live account, sessions, playbooks and stored artifacts. Private disaster-recovery snapshots may retain historical copies. Type DELETE MY ACCOUNT to continue.");
     if (confirmation !== "DELETE MY ACCOUNT" || accountDeleteBusy) return;
     setAccountDeleteBusy(true);
     try {
@@ -422,7 +422,7 @@ export default function App() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Account deletion failed.");
       try { await authClient.signOut(); } catch {}
-      window.alert("Your OUTPERFORM account and stored work have been deleted.");
+      window.alert("Your live OUTPERFORM account and stored work have been deleted. Private disaster-recovery snapshots may retain historical copies.");
       window.location.replace("/");
     } catch (e) {
       window.alert(e.message);
