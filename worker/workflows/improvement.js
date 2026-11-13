@@ -646,8 +646,7 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
             finalContent
           }),
           temperature: 0.1,
-          maxTokens: 2400,
-          responseFormat: { type: "json_object" }
+          maxTokens: 2400
         }));
         finalReview = parseFinalReview(finalReviewText);
         await step.do("record-final-review", async () => {
