@@ -171,6 +171,10 @@ try {
   await pageA.keyboard.press("Escape");
   await pageA.locator(".composer").waitFor({ state: "detached" });
   await pageA.getByRole("button", { name: "New session" }).click();
+  await pageA.locator(".composer").waitFor({ state: "visible" });
+  await pageA.getByRole("button", { name: "Close" }).click();
+  await pageA.locator(".composer").waitFor({ state: "detached" });
+  await pageA.getByRole("button", { name: "New session" }).click();
   await pageA.locator("#task-type").selectOption("DOCUMENT");
   const composerPlaybookObjective = "Create a reusable QA runbook for a web application.";
   await pageA.locator("#objective").fill(composerPlaybookObjective);
@@ -299,7 +303,8 @@ try {
   assert.ok(qualityGateCount >= 4, "Deterministic quality gate must expose its individual checks.");
 
   await pageA.screenshot({ path: outputDir + "/review-dark-desktop.png", fullPage: true });
-  await pageA.getByRole("button", { name: "Close" }).click();
+  await pageA.keyboard.press("Escape");
+  await pageA.locator(".review-panel").waitFor({ state: "detached" });
   await pageA.getByRole("button", { name: "Switch to light mode" }).click();
   assert.equal(await pageA.locator("html").getAttribute("data-theme"), "light");
   await sessionRow.getByRole("button", { name: "Review" }).click();
@@ -307,14 +312,18 @@ try {
   await pageA.locator(".final-review-summary").waitFor({ state: "visible", timeout: 20000 });
   await pageA.screenshot({ path: outputDir + "/review-light-desktop.png", fullPage: true });
   await pageA.setViewportSize({ width: 375, height: 850 });
-  const mobileReviewDimensions = await pageA.evaluate(() => ({
-    viewport: window.innerWidth,
-    document: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
-    panel: document.querySelector(".review-panel")?.scrollWidth ?? 0,
-    panelClient: document.querySelector(".review-panel")?.clientWidth ?? 0
-  }));
-  assert.ok(mobileReviewDimensions.document <= 376, "Review workspace must not overflow at 375px: " + JSON.stringify(mobileReviewDimensions));
-  assert.ok(mobileReviewDimensions.panel <= mobileReviewDimensions.panelClient + 1, "Review panel content must not overflow horizontally.");
+  for (const width of [320, 375]) {
+    await pageA.setViewportSize({ width, height: 850 });
+    const mobileReviewDimensions = await pageA.evaluate(() => ({
+      viewport: window.innerWidth,
+      document: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+      panel: document.querySelector(".review-panel")?.scrollWidth ?? 0,
+      panelClient: document.querySelector(".review-panel")?.clientWidth ?? 0
+    }));
+    assert.ok(mobileReviewDimensions.document <= width + 1, "Review workspace must not overflow at " + width + "px: " + JSON.stringify(mobileReviewDimensions));
+    assert.ok(mobileReviewDimensions.panel <= mobileReviewDimensions.panelClient + 1, "Review panel content must not overflow horizontally at " + width + "px.");
+  }
+  await pageA.setViewportSize({ width: 375, height: 850 });
   await pageA.screenshot({ path: outputDir + "/review-light-mobile.png", fullPage: true });
   await pageA.getByRole("button", { name: "Close" }).click();
   await pageA.getByRole("button", { name: "Switch to dark mode" }).click();
@@ -437,6 +446,8 @@ try {
   assert.equal(await pageA.locator("html").getAttribute("data-theme"), "light", "Performance page must support light mode.");
   await pageA.getByRole("button", { name: "Switch to dark mode" }).click();
   assert.equal(await pageA.locator("html").getAttribute("data-theme"), "dark", "Performance page must support dark mode.");
+  await pageA.getByRole("button", { name: "Back to overview" }).click();
+  await pageA.locator(".work-area").waitFor({ state: "visible" });
 
   await pageA.getByRole("button", { name: "Playbooks" }).click();
   await pageA.locator(".playbook-grid").waitFor({ state: "visible" });
@@ -495,6 +506,7 @@ try {
   for (let index = 0; index < await matchingRows.count(); index += 1) {
     await matchingRows.nth(index).getByRole("button", { name: "Review" }).click();
     await pageA.locator(".review-panel").waitFor({ state: "visible", timeout: 20000 });
+    await pageA.locator(".final-review-summary").waitFor({ state: "visible", timeout: 20000 });
     if (await pageA.locator(".decision-actions").count()) {
       followUpReviewOpened = true;
       break;
