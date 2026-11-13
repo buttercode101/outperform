@@ -338,7 +338,7 @@ function GuestWorkspace({ onSignIn, theme, onToggleTheme }) {
           <label htmlFor="guest-context">Existing work or context <span>Optional · paste or import a text file up to 100 KB</span></label>
           <input className="file-input" type="file" accept=".txt,.md,.markdown,.json,.csv,.html,.xml,.yaml,.yml" aria-label="Import a text file" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; if (file.size > 100000) { setNotice("This file is larger than 100 KB. Paste a smaller excerpt instead."); e.target.value = ""; return; } try { setContext(await file.text()); setNotice("Loaded " + file.name + " into the brief. It remains local until you export it."); } catch { setNotice("Could not read that file. Try a plain-text, Markdown, JSON or CSV file."); } e.target.value = ""; }} />
           <textarea id="guest-context" rows={4} value={context} onChange={e => setContext(e.target.value)} placeholder="Paste notes, a draft, requirements or background…" />
-          {notice && !showComposer && <p className="notice" role="status">{notice}</p>}
+          {notice && <p className="notice" role="status">{notice}</p>}
           <div className="guest-form-actions">{editingId && <button className="secondary-button" type="button" onClick={cancelEdit}>Cancel edit</button>}<button className="primary-button" type="submit" disabled={!objective.trim()}><Icon name="plus" /> {editingId ? "Save changes" : "Save work brief"} <Icon name="arrow" /></button></div>
           <p className="composer-note">Your brief stays in this browser. It is not sent to OUTPERFORM servers.</p>
         </form>
@@ -925,7 +925,7 @@ export default function App() {
         <section className="work-area">
           <div className="section-heading"><div><span className="section-kicker">YOUR WORK</span><h2>Improvement sessions</h2></div><span className="empty-count">{visibleSessions.length} of {sessions.length} shown</span></div>
           <div className="session-filters"><input aria-label="Search sessions" value={sessionSearch} onChange={(e) => setSessionSearch(e.target.value)} placeholder="Search your work…" /><select aria-label="Filter by status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="ALL">All statuses</option>{["CREATED","UNDERSTANDING","BASELINING","EXECUTING","CHALLENGING","EVALUATING","IMPROVING","VERIFYING","AWAITING_APPROVAL","BLOCKED","COMPLETED","FAILED","CANCELLED"].map((value) => <option key={value} value={value}>{value.replaceAll("_"," ")}</option>)}</select><select aria-label="Filter by work type" value={taskFilter} onChange={(e) => setTaskFilter(e.target.value)}><option value="ALL">All work types</option>{taskTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></div>
-          {notice && <p className="notice" role="status">{notice}</p>}
+          {notice && !showComposer && <p className="notice" role="status">{notice}</p>}
           {sessions.length === 0 ? (
             <div className="empty-state"><div className="empty-symbol"><Mark /></div><h3>Your next breakthrough starts here.</h3><p>There are no sessions yet. Start with something you're working on and give it room to get better.</p><button className="text-button" onClick={() => setShowComposer(true)}>Create your first session <Icon name="arrow" /></button></div>
           ) : visibleSessions.length === 0 ? (
