@@ -5,6 +5,7 @@ import { assessWorkRisk } from "../../src/domain/risk-assessment.js";
 import { buildFinalReviewPrompt } from "../../src/domain/final-review.js";
 import { WORKFLOW_ARTIFACT_VERSIONS } from "../../src/domain/artifact.js";
 import { extractJsonObject, normalizeModelContent, parseAdjudicationResponse } from "../../src/domain/structured-response.js";
+import { countModelCallAttempts, reserveModelCall } from "../model-call-budget.js";
 
 const isoNow = () => new Date().toISOString();
 
@@ -70,7 +71,38 @@ async function recordModelUsage(env, sessionId, stage, model, payload) {
   ).run();
 }
 
-async function callModel(env, { sessionId, stage, model = env.OPENROUTER_MODEL, system, prompt, temperature = 0.4, maxTokens = 3500, responseFormat = null }) {
+function runModelStep(step, name, maxAttempts, callback) {
+  const attempts = Math.max(1, Math.min(3, Math.floor(Number(maxAttempts) || 1)));
+  const retries = attempts - 1;
+  if (!retries) return step.do(name, callback);
+  return step.do(name, {
+    retries: { limit: retries, delay: "3 seconds", backoff: "exponential" }
+  }, callback);
+}
+
+function fallbackEvaluation(reason) {
+  return {
+    preferred: "primary",
+    rationale: reason,
+    strengths: [],
+    risks: [reason],
+    improvementIdeas: [],
+    parsed: false,
+    source: "SYSTEM_FALLBACK"
+  };
+}
+
+function fallbackFinalReview(reason) {
+  return {
+    assessment: reason,
+    criteriaCoverage: [],
+    remainingRisks: [reason],
+    unverifiedClaims: ["Claims and outcomes still require independent human or external verification."],
+    verificationStatus: "UNVERIFIED"
+  };
+}
+
+async function callModel(env, { sessionId, stage, model = env.OPENROUTER_MODEL, system, prompt, temperature = 0.4, maxTokens = 3500, responseFormat = null, maxModelCalls = 5 }) {
   if (!env.OPENROUTER_API_KEY || !env.OPENROUTER_MODEL) {
     const error = new Error("Model provider is not configured. Set OPENROUTER_API_KEY and OPENROUTER_MODEL before starting sessions.");
     error.code = "PROVIDER_NOT_CONFIGURED";
@@ -93,14 +125,34 @@ async function callModel(env, { sessionId, stage, model = env.OPENROUTER_MODEL, 
       { role: "user", content: prompt }
     ]
   };
-  const requestModel = (withResponseFormat) => fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      ...baseBody,
-      ...(withResponseFormat && responseFormat ? { response_format: responseFormat } : {})
-    })
-  });
+  const requestModel = async (withResponseFormat) => {
+    await reserveModelCall(env.DB, {
+      sessionId,
+      stage,
+      model,
+      maxModelCalls,
+      mode: withResponseFormat && responseFormat ? "STRUCTURED_JSON" : "TEXT"
+    });
+    try {
+      return await fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          ...baseBody,
+          ...(withResponseFormat && responseFormat ? { response_format: responseFormat } : {})
+        }),
+        signal: AbortSignal.timeout(45000)
+      });
+    } catch (cause) {
+      const error = new Error(cause?.name === "TimeoutError" || cause?.name === "AbortError"
+        ? "Model provider request timed out after 45 seconds."
+        : String(cause?.message || "Model provider request failed."));
+      error.code = cause?.name === "TimeoutError" || cause?.name === "AbortError"
+        ? "MODEL_REQUEST_TIMEOUT"
+        : "MODEL_NETWORK_ERROR";
+      throw error;
+    }
+  };
   const providerError = async (response) => {
     const body = (await response.text()).slice(0, 1200);
     const error = new Error(`Model provider returned HTTP ${response.status}: ${body}`);
