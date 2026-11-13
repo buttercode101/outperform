@@ -241,7 +241,7 @@ try {
   await pageA.locator(".final-review-summary").waitFor({ state: "visible", timeout: 20000 });
   await pageA.locator(".model-usage-panel").waitFor({ state: "visible", timeout: 20000 });
   const darkReviewContrast = await pageA.evaluate(() => {
-    const parse = value => (value.match(/[\\d.]+/g) || []).slice(0, 3).map(Number);
+    const parse = value => (value.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
     const luminance = value => {
       const channels = parse(value).map(channel => {
         const normalized = channel / 255;
