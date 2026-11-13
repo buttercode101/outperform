@@ -108,7 +108,6 @@ export function planChallenge({
   const candidates = allowedStrategies
     .filter((strategy) => CHALLENGE_STRATEGIES.includes(strategy) && strategy !== "NO_CHALLENGE")
     .filter((strategy) => remainingModelCalls >= COST[strategy])
-    
     .map((strategy) => {
       const raw = (BASE_VALUE[strategy] + (taskBonuses[strategy] ?? 0)) *
         (0.65 + uncertainty * 0.7) * riskMultiplier;
