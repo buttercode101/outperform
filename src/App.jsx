@@ -583,6 +583,7 @@ export default function App() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || data.error || "Could not create the session.");
       setShowComposer(false);
+      setActiveView("overview");
       setObjective("");
       setContext("");
       setRequirementsText("");
