@@ -77,6 +77,20 @@ test("account deletion fails closed when an R2 listing page is truncated without
   };
   await assert.rejects(
     collectAccountObjectKeys({ DB, ARTIFACTS }, "user-1"),
-    /truncated without a continuation cursor/
+    /did not provide a new continuation cursor/
+  );
+});
+
+
+test("account deletion fails closed if R2 repeats a continuation cursor", async () => {
+  const DB = makeDatabase();
+  const ARTIFACTS = {
+    async list() {
+      return { objects: [], truncated: true, cursor: "same-cursor" };
+    }
+  };
+  await assert.rejects(
+    collectAccountObjectKeys({ DB, ARTIFACTS }, "user-1"),
+    /did not provide a new continuation cursor/
   );
 });
