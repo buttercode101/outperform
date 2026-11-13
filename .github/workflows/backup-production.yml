@@ -1,0 +1,49 @@
+name: Production D1 and R2 Backup
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - ops/production-backup-recovery
+    paths:
+      - "scripts/outperform-backup-production.mjs"
+      - ".github/workflows/backup-production.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: outperform-production-operations
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Export and verify production D1 and R2
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      D1_DATABASE_ID: cb25ae38-f5bc-4e96-8ea2-b049456b5187
+      R2_BUCKET_NAME: outperform-artifacts-prod
+      BACKUP_RETENTION_DAYS: "30"
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Export production D1
+        run: npx wrangler d1 export outperform-prod --remote --skip-confirmation --output=/tmp/outperform-production.sql --config=wrangler.jsonc
+
+      - name: Copy and verify all referenced R2 objects
+        run: node scripts/outperform-backup-production.mjs /tmp/outperform-production.sql
