@@ -446,8 +446,31 @@ try {
   assert.match(metricsText, /TOKENS PROCESSED/);
   for (const width of [320, 375, 768, 1120]) {
     await pageA.setViewportSize({ width, height: width < 500 ? 850 : 1000 });
-    const dimensions = await pageA.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth));
-    assert.ok(dimensions <= width + 1, "Performance page overflows at " + width + "px: " + dimensions);
+    const measurement = await pageA.evaluate(() => {
+      const viewportWidth = document.documentElement.clientWidth;
+      const offenders = [...document.querySelectorAll("body *")].map(element => {
+        const rect = element.getBoundingClientRect();
+        return {
+          tag: element.tagName,
+          className: typeof element.className === "string" ? element.className : element.getAttribute("class"),
+          left: Math.round(rect.left),
+          right: Math.round(rect.right),
+          width: Math.round(rect.width),
+          scrollWidth: element.scrollWidth,
+          clientWidth: element.clientWidth
+        };
+      }).filter(item => item.right > viewportWidth + 1 || item.left < -1 || item.scrollWidth > item.clientWidth + 1)
+        .sort((a, b) => b.right - a.right).slice(0, 15);
+      return {
+        scrollWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+        offenders
+      };
+    });
+    if (width === 768) {
+      await pageA.screenshot({ path: outputDir + "/performance-768.png", fullPage: true });
+      console.log("PERFORMANCE_OVERFLOW_DIAGNOSTICS", JSON.stringify(measurement));
+    }
+    assert.ok(measurement.scrollWidth <= width + 1, "Performance page overflows at " + width + "px: " + measurement.scrollWidth);
   }
   await pageA.setViewportSize({ width: 1440, height: 1000 });
   await pageA.getByRole("button", { name: "Switch to light mode" }).click();
