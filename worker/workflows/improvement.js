@@ -621,7 +621,8 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
       return result;
     });
 
-    if (budget.maxModelCalls >= 5) {
+    const callsAvailableForFinalReview = Math.max(0, maxModelCalls - await countModelCallAttempts(this.env.DB, sessionId));
+    if (callsAvailableForFinalReview > 0) {
       await step.do("mark-verifying", async () => {
         await setStatus(this.env.DB, sessionId, "VERIFYING");
         await recordEvent(this.env.DB, sessionId, "FINAL_REVIEW_STARTED", {
@@ -630,36 +631,54 @@ export class ImprovementWorkflow extends WorkflowEntrypoint {
         });
         return { status: "VERIFYING" };
       });
-      const finalReviewText = await step.do("final-criteria-review", async () => callModel(this.env, {
-        sessionId, stage: "FINAL_REVIEW",
-        system: "You are the final quality reviewer for OUTPERFORM. Review the final artifact against the user's explicit requirements and constraints. You cannot execute code, browse the web, inspect external systems or independently verify facts in this step. Return ONLY JSON with assessment (string), criteriaCoverage (array of objects or strings), remainingRisks (array), and unverifiedClaims (array). Never mark anything externally verified.",
-        prompt: buildFinalReviewPrompt({
-          objective: session.objective,
-          taskType: session.task_type,
-          taskMethod,
-          criteriaText,
-          constraints: acceptanceCriteria.constraints,
-          riskAssessment,
-          qualityGate,
-          finalContent
-        }),
-        temperature: 0.1,
-        maxTokens: 2400,
-        responseFormat: { type: "json_object" }
-      }));
-      finalReview = parseFinalReview(finalReviewText);
-      await step.do("record-final-review", async () => {
-        await recordEvent(this.env.DB, sessionId, "FINAL_REVIEW_COMPLETED", {
-          artifactId: finalArtifact.id,
-          review: finalReview,
-          verificationStatus: "UNVERIFIED"
+      try {
+        const finalReviewText = await runModelStep(step, "final-criteria-review", 1, async () => callModel(this.env, {
+          sessionId, stage: "FINAL_REVIEW", maxModelCalls,
+          system: "You are the final quality reviewer for OUTPERFORM. Review the final artifact against the user's explicit requirements and constraints. You cannot execute code, browse the web, inspect external systems or independently verify facts in this step. Return ONLY JSON with assessment (string), criteriaCoverage (array of objects or strings), remainingRisks (array), and unverifiedClaims (array). Never mark anything externally verified.",
+          prompt: buildFinalReviewPrompt({
+            objective: session.objective,
+            taskType: session.task_type,
+            taskMethod,
+            criteriaText,
+            constraints: acceptanceCriteria.constraints,
+            riskAssessment,
+            qualityGate,
+            finalContent
+          }),
+          temperature: 0.1,
+          maxTokens: 2400,
+          responseFormat: { type: "json_object" }
+        }));
+        finalReview = parseFinalReview(finalReviewText);
+        await step.do("record-final-review", async () => {
+          await recordEvent(this.env.DB, sessionId, "FINAL_REVIEW_COMPLETED", {
+            artifactId: finalArtifact.id,
+            review: finalReview,
+            verificationStatus: "UNVERIFIED"
+          });
+          return { status: "REVIEW_RECORDED" };
         });
-        return { status: "REVIEW_RECORDED" };
-      });
+      } catch (error) {
+        finalReview = fallbackFinalReview(`Final criteria review did not complete (${error.code ?? "provider error"}). ${String(error.message ?? "Review unavailable").slice(0, 250)} Human review remains required.`);
+        await step.do("record-final-review-skipped", async () => {
+          await recordEvent(this.env.DB, sessionId, "FINAL_REVIEW_SKIPPED", {
+            artifactId: finalArtifact.id,
+            code: error.code ?? "FINAL_REVIEW_ERROR",
+            reason: finalReview.assessment,
+            review: finalReview,
+            verificationStatus: "UNVERIFIED"
+          });
+          return { status: "SKIPPED" };
+        });
+      }
     } else {
+      finalReview = fallbackFinalReview("The bounded provider-request budget was exhausted before final criteria review. Human review remains required.");
       await step.do("record-final-review-skipped", async () => {
         await recordEvent(this.env.DB, sessionId, "FINAL_REVIEW_SKIPPED", {
-          reason: "Model-call budget below five; human review remains required.",
+          artifactId: finalArtifact.id,
+          code: "MODEL_BUDGET_EXHAUSTED",
+          reason: finalReview.assessment,
+          review: finalReview,
           verificationStatus: "UNVERIFIED"
         });
         return { status: "SKIPPED" };
