@@ -174,6 +174,10 @@ try {
   await pageA.locator(".composer").waitFor({ state: "visible" });
   await pageA.getByRole("button", { name: "Close" }).click();
   await pageA.locator(".composer").waitFor({ state: "detached" });
+  await pageA.getByRole("button", { name: /Start with your work/ }).click();
+  await pageA.locator(".composer").waitFor({ state: "visible" });
+  await pageA.locator(".modal-backdrop").click({ position: { x: 10, y: 10 } });
+  await pageA.locator(".composer").waitFor({ state: "detached" });
   await pageA.getByRole("button", { name: "New session" }).click();
   await pageA.locator("#task-type").selectOption("DOCUMENT");
   const composerPlaybookObjective = "Create a reusable QA runbook for a web application.";
@@ -501,7 +505,9 @@ try {
   }, followUpSession.id);
   assert.ok(followUpDetail.session.context.includes(followUpFeedback), "Follow-up context must preserve the user's new direction.");
 
+  await pageA.waitForFunction(() => document.querySelectorAll(".session-row").length >= 3, null, { timeout: 20000 });
   const matchingRows = pageA.locator(".session-row").filter({ hasText: objective });
+  assert.equal(await matchingRows.count(), 2, "The original and follow-up sessions must both be visible.");
   let followUpReviewOpened = false;
   for (let index = 0; index < await matchingRows.count(); index += 1) {
     await matchingRows.nth(index).getByRole("button", { name: "Review" }).click();
