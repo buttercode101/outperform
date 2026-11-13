@@ -245,6 +245,7 @@ try {
     await pageA.waitForTimeout(5000);
   }
   assert.ok(session?.id && session.status === "AWAITING_APPROVAL", "Real AI workflow must reach human approval within nine minutes.");
+  await pageA.locator(".session-filters").waitFor({ state: "visible", timeout: 15000 });
 
   await pageA.getByRole("textbox", { name: "Search sessions" }).fill("this session does not exist");
   await pageA.locator(".compact-empty").waitFor({ state: "visible" });
