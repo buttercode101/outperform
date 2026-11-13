@@ -28,8 +28,9 @@ function monitorBrowserErrors(page) {
   });
 }
 monitorBrowserErrors(pageA);
+let nextPromptValue = "DELETE MY ACCOUNT";
 const autoConfirm = async dialog => {
-  if (dialog.type() === "prompt") await dialog.accept("DELETE MY ACCOUNT");
+  if (dialog.type() === "prompt") await dialog.accept(nextPromptValue);
   else await dialog.accept();
 };
 pageA.on("dialog", autoConfirm);
@@ -44,7 +45,12 @@ let userADeleted = false;
 let userBDeleted = false;
 
 async function signUp(page, name, email) {
-  await page.goto(baseURL + "/?account=1&mode=signup", { waitUntil: "networkidle", timeout: 45000 });
+  if (await page.locator(".guest-screen").count()) {
+    await page.getByRole("button", { name: "Sign in / Create account" }).click();
+    await page.locator("#auth-name").waitFor({ state: "visible", timeout: 30000 });
+  } else {
+    await page.goto(baseURL + "/?account=1&mode=signup", { waitUntil: "networkidle", timeout: 45000 });
+  }
   await page.locator("#auth-name").fill(name);
   await page.locator("#auth-email").fill(email);
   await page.locator("#auth-password").fill("OutperformE2E!2026");
@@ -104,7 +110,41 @@ try {
   const emailA = "outperform-e2e-a-" + suffix + "@example.com";
   const emailB = "outperform-e2e-b-" + suffix + "@example.com";
 
+  const guestObjective = "Import a saved local guest brief into the private workspace without running AI.";
+  await pageA.goto(baseURL, { waitUntil: "networkidle", timeout: 45000 });
+  await pageA.locator("#guest-playbook").selectOption("DOCUMENT");
+  await pageA.locator("#guest-objective").fill(guestObjective);
+  await pageA.locator("#guest-context").fill("Synthetic QA context. This brief is disposable and must remain local until the user chooses to import it.");
+  await pageA.getByRole("button", { name: "Save work brief" }).click();
+  const guestRow = pageA.locator(".guest-library .session-row").filter({ hasText: guestObjective });
+  await guestRow.waitFor({ state: "visible", timeout: 15000 });
+  await guestRow.getByRole("button", { name: "Edit" }).click();
+  await pageA.locator("#guest-objective").fill("This unsaved edit must be discarded.");
+  await pageA.getByRole("button", { name: "Cancel edit" }).click();
+  assert.equal(await guestRow.locator("h3").innerText(), guestObjective, "Cancel edit must preserve the saved local brief.");
+  await pageA.getByRole("button", { name: "Sign in / Create account" }).click();
+  await pageA.locator("#auth-name").waitFor({ state: "visible", timeout: 30000 });
+  await pageA.getByRole("button", { name: "Continue without an account" }).click();
+  await pageA.locator(".guest-screen").waitFor({ state: "visible", timeout: 30000 });
   userAId = await signUp(pageA, "OUTPERFORM E2E A", emailA);
+  await pageA.locator(".guest-import-banner").waitFor({ state: "visible", timeout: 20000 });
+  await pageA.getByRole("button", { name: "Import briefs" }).click();
+  await pageA.locator(".guest-import-banner").waitFor({ state: "detached", timeout: 20000 });
+  await pageA.locator(".session-row").filter({ hasText: guestObjective }).waitFor({ state: "visible", timeout: 15000 });
+  const importedGuestCount = await pageA.evaluate(() => JSON.parse(localStorage.getItem("outperform_guest_work") || "[]").length);
+  assert.equal(importedGuestCount, 0, "Successfully imported guest briefs must be removed from local-only storage.");
+  await pageA.getByRole("button", { name: "Sign out" }).click();
+  await pageA.locator(".guest-screen").waitFor({ state: "visible", timeout: 30000 });
+  await pageA.getByRole("button", { name: "Sign in / Create account" }).click();
+  await pageA.locator("#auth-name").waitFor({ state: "visible", timeout: 30000 });
+  await pageA.getByRole("button", { name: "Sign in", exact: true }).click();
+  await pageA.locator("#auth-name").waitFor({ state: "detached", timeout: 10000 });
+  await pageA.locator("#auth-email").fill(emailA);
+  await pageA.locator("#auth-password").fill("OutperformE2E!2026");
+  await pageA.getByRole("button", { name: "Sign in", exact: true }).click();
+  await pageA.locator(".app-shell").waitFor({ state: "visible", timeout: 30000 });
+  const reauthenticatedUserId = await pageA.evaluate(async () => (await (await fetch("/api/auth/get-session")).json())?.user?.id || null);
+  assert.equal(reauthenticatedUserId, userAId, "Sign-out and sign-in must restore the same account.");
   assert.equal(await pageA.locator("html").getAttribute("data-theme"), "dark", "Authenticated app should inherit the system dark preference.");
   await pageA.getByRole("button", { name: "Switch to light mode" }).click();
   assert.equal(await pageA.locator("html").getAttribute("data-theme"), "light", "Authenticated workspace theme toggle must work.");
@@ -125,6 +165,40 @@ try {
   await pageA.screenshot({ path: outputDir + "/authenticated-overview-dark-mobile.png", fullPage: true });
   await pageA.setViewportSize({ width: 1440, height: 1000 });
   await pageA.screenshot({ path: outputDir + "/authenticated-overview-dark-desktop.png", fullPage: true });
+
+  await pageA.getByRole("button", { name: "New session" }).click();
+  await pageA.locator(".composer").waitFor({ state: "visible" });
+  await pageA.keyboard.press("Escape");
+  await pageA.locator(".composer").waitFor({ state: "detached" });
+  await pageA.getByRole("button", { name: "New session" }).click();
+  await pageA.locator("#task-type").selectOption("DOCUMENT");
+  const composerPlaybookObjective = "Create a reusable QA runbook for a web application.";
+  await pageA.locator("#objective").fill(composerPlaybookObjective);
+  await pageA.locator("#requirements").fill("Preserve existing behavior.\nVerify every critical path.");
+  await pageA.locator("#constraints").fill("Do not change production data.");
+  nextPromptValue = "QA composer playbook";
+  await pageA.getByRole("button", { name: "Save as playbook" }).click();
+  nextPromptValue = "DELETE MY ACCOUNT";
+  await pageA.getByRole("button", { name: "Cancel" }).click();
+  const savedComposerPlaybook = await pageA.evaluate(async () => {
+    const response = await fetch("/api/playbooks");
+    const data = await response.json();
+    return (data.playbooks || []).find(item => item.name === "QA composer playbook") || null;
+  });
+  assert.ok(savedComposerPlaybook?.id, "Saving a reusable playbook from the composer must persist it.");
+  await pageA.getByRole("button", { name: "Playbooks" }).click();
+  const composerPlaybookCard = pageA.locator(".saved-playbook-card").filter({ hasText: "QA composer playbook" });
+  await composerPlaybookCard.waitFor({ state: "visible", timeout: 15000 });
+  await composerPlaybookCard.getByRole("button", { name: "Use playbook" }).click();
+  await pageA.locator(".composer").waitFor({ state: "visible" });
+  assert.equal(await pageA.locator("#task-type").inputValue(), "DOCUMENT");
+  assert.equal(await pageA.locator("#objective").inputValue(), composerPlaybookObjective);
+  assert.match(await pageA.locator("#requirements").inputValue(), /Preserve existing behavior/);
+  assert.match(await pageA.locator("#constraints").inputValue(), /Do not change production data/);
+  await pageA.getByRole("button", { name: "Cancel" }).click();
+  await pageA.getByRole("button", { name: "Playbooks" }).click();
+  await composerPlaybookCard.getByRole("button", { name: "Delete" }).click();
+  await composerPlaybookCard.waitFor({ state: "detached", timeout: 15000 });
 
   const objective = "Create a concise deployment runbook for a small web application, including a pre-deployment snapshot, smoke checks, rollback steps, and post-deployment verification.";
   await pageA.getByRole("button", { name: "New session" }).click();
@@ -163,6 +237,15 @@ try {
     await pageA.waitForTimeout(5000);
   }
   assert.ok(session?.id && session.status === "AWAITING_APPROVAL", "Real AI workflow must reach human approval within nine minutes.");
+
+  await pageA.getByRole("textbox", { name: "Search sessions" }).fill("this session does not exist");
+  await pageA.locator(".compact-empty").waitFor({ state: "visible" });
+  await pageA.getByRole("button", { name: "Clear filters" }).click();
+  await pageA.getByLabel("Filter by status").selectOption("AWAITING_APPROVAL");
+  await pageA.getByLabel("Filter by work type").selectOption("DOCUMENT");
+  assert.equal(await pageA.locator(".session-row").count(), 1, "Status and work-type filters must isolate the ready-to-review document.");
+  await pageA.getByLabel("Filter by status").selectOption("ALL");
+  await pageA.getByLabel("Filter by work type").selectOption("ALL");
 
   const sessionRow = pageA.locator(".session-row").filter({ hasText: objective });
   await sessionRow.getByRole("button", { name: "Review" }).click();
